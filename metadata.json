@@ -1,0 +1,6 @@
+{
+  "name": "AL-NIBRAS Class Union Portal",
+  "description": "Official Class Union Management Portal for AL-NIBRAS featuring student administration, academic announcements, notices, events, resources, and activity governance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

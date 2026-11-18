@@ -1,0 +1,1078 @@
+# AL-NIBRAS CLASS UNION PORTAL – COMPLETE ADVANCED UPGRADE
+
+Act as a Senior Full-Stack Developer, UI/UX Designer, Database Architect, and Financial Management System Developer.
+
+I want you to upgrade my EXISTING AL-NIBRAS Class Union Portal with the following changes.
+
+CRITICAL INSTRUCTIONS:
+- Do not create a new project.
+- Do not rebuild the existing website.
+- Do not delete existing data.
+- Preserve all existing working features.
+- Inspect the existing codebase before modifying anything.
+- Continue using the existing Firebase project.
+- Integrate all new features into the current application.
+- Every feature must be fully functional, not just a visual design.
+
+==================================================
+1. COMPLETE CERTIFICATE DESIGN REDESIGN
+==================================================
+
+The current certificate design is not what I want.
+
+I have provided two reference images:
+- Image 1: Current certificate. This is the design that must be replaced.
+- Image 2: My preferred certificate design reference.
+
+Redesign the certificate based on Image 2.
+
+DESIGN REQUIREMENTS:
+
+Create a premium, elegant, professional certificate with:
+
+- Navy blue decorative sections.
+- Beautiful golden curved decorative elements.
+- White or ivory background.
+- Elegant typography.
+- Professional certificate heading.
+- Premium decorative borders.
+- Official AL-NIBRAS branding.
+- Beautiful student name typography.
+- Professional signature section.
+- Clean spacing and balanced layout.
+- A4 landscape PDF format.
+
+The final certificate should look like an expensive, professionally designed academic achievement certificate.
+
+REMOVE COMPLETELY:
+- QR Code.
+- QR Scanner.
+- QR Verification section.
+- Any scanner-related graphics or functionality on the certificate.
+
+POSITION-BASED CERTIFICATES:
+
+Generate the certificate dynamically according to the student's actual achievement.
+
+1st Position:
+- Display "1ST POSITION" prominently.
+- Use a premium gold first-place design.
+
+2nd Position:
+- Display "2ND POSITION" prominently.
+- Use a distinct silver-accented design.
+
+3rd Position:
+- Display "3RD POSITION" prominently.
+- Use a distinct bronze-accented design.
+
+Other positions:
+- Display the actual position or achievement title selected by Admin.
+
+The certificate must automatically retrieve:
+
+- Student Name.
+- Student ID.
+- Program Name.
+- Program Date.
+- Position.
+- Grade.
+- Result Points.
+- Admin Name.
+- Official Union Logo.
+
+Never hardcode these values.
+
+Certificate should be generated individually for every selected student.
+
+STUDENT FEATURES:
+- View certificate.
+- Preview certificate.
+- Download certificate as PDF.
+- Download in high quality.
+- Only access their own certificates.
+
+ADMIN FEATURES:
+- Preview certificates.
+- Download certificates.
+- Manage certificate settings.
+- Update official logo.
+- Update authorized signature.
+- Update administrator display name.
+- Update certificate design settings.
+
+When Admin edits a result, update the associated certificate automatically.
+
+==================================================
+2. OFFICIAL AL-NIBRAS UNION LOGO
+==================================================
+
+I will provide the official AL-NIBRAS Class Union logo.
+
+IMPORTANT:
+Do not use the existing text-based "AN" circle as a permanent replacement for the official logo.
+
+Create a centralized logo management system.
+
+ADMIN PANEL:
+
+Add a new option:
+
+OFFICIAL BRANDING & LOGO
+
+Admin can:
+- Upload the official union logo from their device.
+- Preview the logo.
+- Replace the logo.
+- Remove an old logo.
+- Upload a transparent PNG logo.
+- Upload SVG or other supported image formats.
+- Set logo dimensions.
+- Manage logo placement.
+
+Use the official logo consistently throughout the entire website:
+
+1. Public Homepage.
+2. Navigation Bar.
+3. Admin Sidebar.
+4. Student Sidebar.
+5. Login Page.
+6. Admin Dashboard.
+7. Student Dashboard.
+8. Announcements.
+9. Notices.
+10. Events.
+11. Gallery.
+12. Video Gallery.
+13. Chat Interface.
+14. Certificates.
+15. PDF Documents.
+16. Financial Reports.
+17. Official Receipts.
+18. Footer.
+19. Other official website documents.
+
+Use a centralized branding configuration so changing the official logo updates all relevant locations automatically.
+
+Store the official logo in Firebase Storage and its reference in Firestore.
+
+Do not create different unrelated logos for different pages.
+
+==================================================
+3. COMPLETE CURRENCY CONVERSION TO INDIAN RUPEES
+==================================================
+
+The entire website currently contains USD currency formatting in some places.
+
+Remove USD currency formatting completely.
+
+Use Indian Rupees everywhere.
+
+Currency symbol: ₹
+
+Currency code: INR
+
+Examples:
+- ₹100
+- ₹500
+- ₹1,000
+- ₹10,000
+
+Apply this throughout:
+
+- Fine Management.
+- Financial Management.
+- Income.
+- Expenses.
+- Student Payments.
+- Outstanding Dues.
+- Financial Reports.
+- Dashboard Statistics.
+- Receipts.
+- Exported Documents.
+- Any other monetary field.
+
+Use Indian number formatting.
+
+Example:
+₹1,25,000.00
+
+Do not change the numerical value of existing transactions just because the display currency changes. Inspect existing data and handle any genuine USD-to-INR conversion only when explicitly required.
+
+All new financial entries must use INR.
+
+==================================================
+4. COMPLETE ADMIN-CONTROLLED STUDENT PROFILES
+==================================================
+
+I want the Admin to control student profile information.
+
+Students must NOT be able to edit their own profile information.
+
+ADMIN FEATURES:
+
+Admin can:
+- Create student accounts.
+- Edit student information.
+- Change student names.
+- Change usernames.
+- Change contact information.
+- Change addresses.
+- Assign profile pictures.
+- Replace profile pictures.
+- Remove profile pictures.
+- Change student IDs.
+- Change roll numbers.
+- Change class information.
+- Activate accounts.
+- Deactivate accounts.
+- Reset passwords securely.
+- Delete student accounts.
+- View account history.
+
+PROFILE PICTURE REQUIREMENT:
+
+Every student must have an individual profile picture assigned by Admin.
+
+Admin can upload profile pictures directly from their device.
+
+Students cannot:
+- Change profile pictures.
+- Upload a different profile picture.
+- Edit personal information.
+- Change usernames.
+- Change contact information.
+- Change account details.
+- Change their own permissions.
+
+Student profiles must be read-only.
+
+Only authorized Admin actions can modify student profile information.
+
+IMPORTANT:
+Never display or store actual passwords in readable form. Password resets must use secure authentication procedures.
+
+==================================================
+5. REMOVE MY TOTAL POINTS
+==================================================
+
+Remove the following section completely from the Student Panel:
+
+"MY TOTAL POINTS"
+
+Remove:
+- My Total Points dashboard card.
+- My Total Points sidebar item, if present.
+- My Total Points standalone page.
+- Any duplicate total-point summary widgets.
+
+IMPORTANT:
+Do not delete the actual student result records or accumulated point data from the database.
+
+Keep:
+- Individual Program Results.
+- Position.
+- Grade.
+- Result Points.
+- Achievement History.
+- Certificates.
+
+Only remove the My Total Points display and associated student-facing navigation.
+
+==================================================
+6. TELEGRAM-STYLE CHAT SYSTEM
+==================================================
+
+Redesign the existing messaging interface.
+
+Rename:
+
+"Live Chat & Message" to "Chat"
+
+Remove the words "Live" and "Message" from the visible menu title.
+
+The new sidebar item should simply be:
+
+CHAT
+
+Create a professional chat interface inspired by Telegram's layout and usability.
+
+Do not copy Telegram branding or logos.
+
+CHAT INTERFACE:
+
+Desktop layout:
+- Left conversation sidebar.
+- Right conversation window.
+- Search conversations.
+- Student profile pictures.
+- Contact names.
+- Last message preview.
+- Unread message badges.
+- Message timestamps.
+- Online/offline status where available.
+
+CHAT FEATURES:
+
+1. Real-time text messaging.
+2. Image sharing.
+3. Video sharing.
+4. PDF sharing.
+5. Document sharing.
+6. Multiple file attachments.
+7. Message delivery status.
+8. Read receipts.
+9. Unread message count.
+10. Reply to messages.
+11. Forward messages.
+12. Delete own messages where permitted.
+13. Message search.
+14. Conversation search.
+15. Chat history.
+16. File preview.
+17. Image preview.
+18. Video preview.
+19. Download attachments.
+20. Conversation notifications.
+
+ADMIN CHAT:
+
+- Admin can search all students.
+- Admin can start conversations.
+- Admin can communicate with individual students.
+- Admin can manage conversations.
+- Admin can send announcements through appropriate official channels.
+- Admin can view authorized conversation history.
+
+STUDENT CHAT:
+
+- Students can communicate with Admin.
+- Students can view their conversations.
+- Students can send permitted files.
+- Students can reply to messages.
+- Students cannot access another student's private conversations.
+
+Use Firebase real-time listeners.
+
+Store messages and attachments securely.
+
+Implement proper Firestore security rules.
+
+Do not build fake real-time functionality.
+
+==================================================
+7. ADD COMPLETE VIDEO MANAGEMENT SYSTEM
+==================================================
+
+Add a separate module named:
+
+VIDEO GALLERY
+
+Admin sidebar:
+- Video Gallery.
+
+Student sidebar:
+- Video Gallery.
+
+ADMIN FEATURES:
+
+- Upload videos from device.
+- Add video title.
+- Add description.
+- Add category.
+- Upload thumbnail.
+- Edit video information.
+- Delete videos.
+- Publish/unpublish videos.
+- Create video playlists.
+- Organize videos by category.
+- Search videos.
+- Set publication dates.
+- Manage video visibility.
+
+STUDENT FEATURES:
+
+- Watch published videos.
+- Search videos.
+- Browse categories.
+- View video descriptions.
+- View video thumbnails.
+- Watch videos in a modern video player.
+- View playlists.
+
+Use a suitable video storage solution.
+
+For small files, Firebase Storage may be used.
+
+For large video libraries, use a suitable video hosting or storage solution and integrate it securely.
+
+Do not pretend that a video has uploaded successfully if the upload fails.
+
+==================================================
+8. RENAME CLASS GALLERY TO GALLERY
+==================================================
+
+Currently, the website contains:
+
+CLASS GALLERY
+
+Change it to:
+
+GALLERY
+
+Remove the word "CLASS" everywhere it appears in this feature's visible navigation and headings.
+
+The Gallery should support:
+
+- Multiple photo albums.
+- Upload multiple images.
+- Image captions.
+- Descriptions.
+- Categories.
+- Event-wise albums.
+- Photo previews.
+- Image downloads where permitted.
+- Edit and delete.
+- Publish/unpublish.
+- Search and filtering.
+
+Add a beautiful responsive photo gallery layout.
+
+==================================================
+9. PUBLIC HOMEPAGE MANAGEMENT
+==================================================
+
+Add a dedicated Admin Panel sidebar option named:
+
+PUBLIC HOMEPAGE MANAGEMENT
+
+Admin must be able to control the entire public homepage from this section.
+
+Create management modules for:
+
+1. Homepage Hero Section.
+2. Homepage Logo.
+3. Homepage Banner.
+4. Hero Background Image.
+5. Welcome Heading.
+6. Welcome Description.
+7. About Union Section.
+8. Union Information.
+9. Announcements Section.
+10. Notice Section.
+11. Upcoming Events.
+12. Gallery Preview.
+13. Video Preview.
+14. Contact Information.
+15. Address.
+16. Social Media Links.
+17. Footer.
+18. Navigation Menu.
+19. Homepage Images.
+20. Homepage Buttons.
+
+Admin must be able to:
+
+- Add content.
+- Edit content.
+- Delete content.
+- Upload images from device.
+- Replace images.
+- Change text.
+- Change colors where supported.
+- Change section visibility.
+- Reorder sections.
+- Publish/unpublish sections.
+- Preview the homepage before publishing.
+
+Every published change must automatically appear on the public homepage.
+
+Students must not access this management section.
+
+==================================================
+10. UPDATE CREATE STUDENT UNION ACCOUNT FORM
+==================================================
+
+There is an existing form named:
+
+CREATE STUDENT UNION ACCOUNT
+
+Redesign and improve this form.
+
+REMOVE COMPLETELY:
+
+- Academic Department field.
+- Academic Department selection.
+- Academic Department validation.
+- Academic Department display from the relevant student account creation flow.
+
+ADD A COMPLETE ADDRESS SECTION:
+
+Allow Admin to enter:
+
+- House / Building.
+- Street / Road.
+- Village / Area.
+- Post Office.
+- Police Station.
+- District.
+- State.
+- PIN Code.
+- Country.
+
+Allow Admin to save complete addresses.
+
+CONTACT GMAIL:
+
+The Gmail field must be OPTIONAL.
+
+Admin must be able to create a student account even when the student does not have a Gmail address.
+
+Do not force Gmail validation when the field is empty.
+
+If Gmail is provided:
+- Validate the email format.
+- Save it correctly.
+- Allow Admin to edit it later.
+
+If Gmail is not provided:
+- Save the student account normally.
+- Do not display validation errors for the optional field.
+
+Keep other essential account creation fields working.
+
+Add profile picture upload directly from the device.
+
+==================================================
+11. COMPLETE UNION FINANCIAL MANAGEMENT SYSTEM
+==================================================
+
+This is a very important new feature.
+
+Add a dedicated Admin Panel module named:
+
+UNION FINANCIAL MANAGEMENT
+
+The purpose is to manage all money collected, all money spent, student contributions, unpaid dues, and the remaining Union balance.
+
+Build a complete financial accounting system.
+
+ADMIN DASHBOARD:
+
+Show:
+
+1. Total Income.
+2. Total Expenses.
+3. Current Union Balance.
+4. Total Student Contributions.
+5. Total Outstanding Dues.
+6. Total Students Who Paid.
+7. Total Students With Pending Payments.
+8. Recent Transactions.
+9. Monthly Income.
+10. Monthly Expenses.
+
+All statistics must come from actual database transactions.
+
+A. INCOME MANAGEMENT
+
+Admin can record money received by the Union.
+
+Fields:
+
+- Income Title.
+- Income Category.
+- Amount in INR.
+- Date.
+- Received From.
+- Student Name, if applicable.
+- Student ID, if applicable.
+- Payment Method.
+- Transaction Reference.
+- Description.
+- Upload Receipt.
+- Custom Type.
+
+Examples:
+
+- Student Contributions.
+- Donations.
+- Program Contributions.
+- Event Income.
+- Membership Fees.
+- Other Income.
+
+Features:
+- Add income.
+- Edit income.
+- Delete income with confirmation.
+- Search income.
+- Filter by date.
+- Filter by category.
+- View income history.
+- Export income reports.
+
+B. EXPENSE MANAGEMENT
+
+Admin can record all Union expenses.
+
+Fields:
+
+- Expense Title.
+- Expense Category.
+- Amount in INR.
+- Expense Date.
+- Paid To.
+- Payment Method.
+- Description.
+- Expense Purpose.
+- Upload Bill or Receipt.
+- Custom Type.
+
+Examples:
+
+- Program Expenses.
+- Decoration.
+- Food.
+- Printing.
+- Transportation.
+- Equipment.
+- Stationery.
+- Other Expenses.
+
+Features:
+- Add expense.
+- Edit expense.
+- Delete expense with confirmation.
+- Search expenses.
+- Filter expenses.
+- View expense history.
+- Export expense reports.
+
+C. STUDENT CONTRIBUTION MANAGEMENT
+
+Create a dedicated section:
+
+STUDENT CONTRIBUTIONS
+
+Admin must be able to select any student from the registered student database.
+
+Admin can record:
+
+- Student Name.
+- Student ID.
+- Contribution Amount.
+- Payment Date.
+- Payment Method.
+- Payment Purpose.
+- Transaction Reference.
+- Receipt Upload.
+- Description.
+
+The system must automatically identify which student paid the money.
+
+For example:
+
+Student: Student A
+Contribution: ₹500
+Date: 06/11/2026
+Purpose: Annual Program Contribution
+Status: Paid
+
+Save the transaction in the financial database and the student's contribution history.
+
+D. STUDENT DUES / OUTSTANDING BALANCE
+
+Create another section:
+
+STUDENT DUES
+
+Admin can record how much money each student owes to the Union.
+
+Admin must be able to:
+
+- Select a student.
+- Enter the amount due.
+- Enter the reason.
+- Set the issue date.
+- Set the payment deadline.
+- Record partial payments.
+- Record full payments.
+- Edit outstanding dues.
+- Cancel incorrect dues.
+- View payment history.
+- View remaining balances.
+
+Example:
+
+Student Name: Student B
+
+Total Amount Due: ₹1,000
+Amount Paid: ₹600
+Remaining Due: ₹400
+
+Automatically calculate:
+
+Remaining Due = Total Due - Total Payments.
+
+Support multiple dues and multiple payments for each student.
+
+E. STUDENT FINANCIAL PROFILE
+
+Add a financial history section inside each student's Admin profile.
+
+Display:
+
+- Total Amount Due.
+- Total Amount Paid.
+- Remaining Balance.
+- Payment History.
+- Contribution History.
+- Outstanding Dues.
+- Receipts.
+- Transaction Dates.
+
+Admin can see the financial records of every student.
+
+Students may view only their own published financial statements if that feature is enabled by Admin.
+
+Students must not be able to modify financial transactions.
+
+F. UNION BALANCE CALCULATION
+
+Calculate the current Union balance using real transactions.
+
+Formula:
+
+Current Union Balance = Total Verified Income - Total Verified Expenses.
+
+Student contributions must be included in total income exactly once.
+
+Do not count the same payment again as a separate income transaction.
+
+Pending dues are NOT actual income.
+
+Only money actually received should increase the Union balance.
+
+Partial payments must update the remaining dues correctly.
+
+G. FINANCIAL REPORTS
+
+Add reports for:
+
+- Daily Income.
+- Weekly Income.
+- Monthly Income.
+- Yearly Income.
+- Daily Expenses.
+- Monthly Expenses.
+- Yearly Expenses.
+- Student-wise Contributions.
+- Student-wise Outstanding Dues.
+- Total Union Balance.
+- Category-wise Expenses.
+- Category-wise Income.
+
+Add:
+- Date range filters.
+- Search.
+- PDF export.
+- CSV export.
+- Printable financial statements.
+
+H. FINANCIAL RECEIPTS
+
+Generate professional receipts for every recorded student payment.
+
+Receipt must include:
+
+- Official AL-NIBRAS logo.
+- Receipt Number.
+- Student Name.
+- Student ID.
+- Amount in INR.
+- Payment Date.
+- Payment Purpose.
+- Payment Method.
+- Authorized Admin Name.
+- Union Contact Information.
+
+Allow Admin to download and print receipts.
+
+I. FINANCIAL SECURITY
+
+Only authorized Admin users can create, edit, or delete financial records.
+
+Keep a permanent audit trail of financial changes.
+
+Never silently alter a previous transaction.
+
+When an incorrect transaction is deleted or reversed, record the action in the audit history.
+
+Protect the financial database with appropriate backend authorization and Firestore Security Rules.
+
+==================================================
+12. CUSTOM TYPE IN FINANCIAL MANAGEMENT
+==================================================
+
+Add Custom Type wherever relevant.
+
+For example:
+
+Income Categories:
+- Donation.
+- Student Contribution.
+- Program Income.
+- Custom Type.
+
+Expense Categories:
+- Food.
+- Decoration.
+- Transport.
+- Printing.
+- Custom Type.
+
+Dues Categories:
+- Program Fee.
+- Membership Fee.
+- Other.
+- Custom Type.
+
+When Custom Type is selected:
+- Display a text field.
+- Allow Admin to enter a category name.
+- Save it in Firestore.
+- Allow reuse of previous categories.
+
+==================================================
+13. UPDATED ADMIN SIDEBAR
+==================================================
+
+Organize the Admin sidebar into clear groups.
+
+DASHBOARD
+- Dashboard
+
+USER MANAGEMENT
+- Student Management
+- Teacher Management
+- Account Management
+
+ACADEMIC & RESULTS
+- Class Routine
+- Exam Management
+- Results Management
+- Program Results
+- Point Management
+
+CONTENT MANAGEMENT
+- Announcements
+- Notice Board
+- Events
+- Gallery
+- Video Gallery
+- Study Materials
+- Documents
+
+COMMUNICATION
+- Chat
+- Feedback
+- Notifications
+
+FINANCIAL MANAGEMENT
+- Union Financial Management
+- Income
+- Expenses
+- Student Contributions
+- Student Dues
+- Financial Reports
+
+WEBSITE MANAGEMENT
+- Public Homepage Management
+- Page Management
+- Media Library
+- Official Branding & Logo
+
+SYSTEM
+- Activity Logs
+- Reports
+- Backup
+- Settings
+- Admin Profile
+- Logout
+
+Use nested menus where necessary to keep the sidebar clean.
+
+==================================================
+14. UPDATED STUDENT SIDEBAR
+==================================================
+
+Organize the Student sidebar as follows:
+
+- Dashboard
+- My Profile
+- Announcements
+- Notice Board
+- Events
+- Class Routine
+- Exam Schedule
+- My Results
+- Assignments
+- Study Materials
+- Gallery
+- Video Gallery
+- Downloads
+- Attendance
+- Calendar
+- Chat
+- Notifications
+- Feedback
+- Financial Statement (only if enabled by Admin)
+- Logout
+
+IMPORTANT:
+
+Do not show:
+- My Total Points.
+- Class Gallery.
+- Live Chat & Message.
+- Profile Edit.
+- Change Profile Picture.
+
+Use the new names consistently throughout the website.
+
+==================================================
+15. DATABASE AND BACKEND INTEGRATION
+==================================================
+
+Use the existing Firebase project.
+
+Add or update appropriate Firestore collections:
+
+- users
+- students
+- teachers
+- branding
+- websiteSettings
+- homepageSections
+- gallery
+- videos
+- conversations
+- messages
+- income
+- expenses
+- studentContributions
+- studentDues
+- financialTransactions
+- financialReceipts
+- financialReports
+- accountActivityLogs
+- notifications
+
+Use Firebase Storage for:
+
+- Official logo.
+- Student profile pictures.
+- Gallery images.
+- Video thumbnails.
+- Uploaded videos where appropriate.
+- Chat attachments.
+- Financial receipts.
+- Expense bills.
+- Certificates.
+
+Implement:
+- Firestore transactions.
+- Secure role-based access.
+- Input validation.
+- File validation.
+- Real-time updates where appropriate.
+- Proper error handling.
+- Database indexes.
+- Pagination.
+- Search and filtering.
+
+Do not expose privileged credentials in frontend code.
+
+==================================================
+16. FINAL DESIGN REQUIREMENTS
+==================================================
+
+Maintain a consistent AL-NIBRAS premium identity.
+
+Main colors:
+- Navy Blue.
+- Gold.
+- White.
+- Light Ivory.
+
+Requirements:
+- Premium professional appearance.
+- Clean dashboard layouts.
+- Responsive mobile design.
+- Consistent buttons and forms.
+- Professional typography.
+- Smooth animations.
+- Attractive data tables.
+- Beautiful financial charts.
+- Modern gallery.
+- Modern video player.
+- Telegram-inspired chat layout.
+- Premium certificates.
+- Official logo throughout the website.
+
+==================================================
+17. TESTING REQUIREMENTS
+==================================================
+
+Test everything before declaring completion.
+
+1. Certificate design matches the second reference image.
+2. First-place certificate displays 1st Position.
+3. Second-place certificate displays 2nd Position.
+4. Third-place certificate displays 3rd Position.
+5. QR Code is completely removed.
+6. Official logo appears throughout the website.
+7. Changing the logo updates all relevant locations.
+8. All currency displays use ₹ INR.
+9. Students cannot edit their profiles.
+10. Admin can upload student profile pictures.
+11. My Total Points is removed from Student Panel.
+12. Chat works in real time.
+13. Chat supports file and video attachments.
+14. Video Gallery works.
+15. Class Gallery is renamed Gallery.
+16. Admin can control the complete public homepage.
+17. Academic Department is removed from Create Student Union Account.
+18. Gmail is optional.
+19. Address fields work correctly.
+20. Income records save correctly.
+21. Expense records save correctly.
+22. Student contributions are tracked.
+23. Student outstanding dues are calculated correctly.
+24. Partial payments work.
+25. Union balance is accurate.
+26. Financial reports work.
+27. Financial receipts can be downloaded.
+28. All existing features continue working.
+
+FINAL INSTRUCTION:
+
+Implement the complete upgrade in the existing AL-NIBRAS application.
+
+Do not simply create attractive UI screens.
+
+Every form, button, upload, calculation, chat feature, financial transaction, and management option must connect to real backend functionality and the existing Firebase database.
+
+Work module by module.
+
+Before finishing, provide:
+- Files created.
+- Files modified.
+- Features implemented.
+- Database changes.
+- Security rules updated.
+- Tests completed.
+- Remaining configuration requirements.
+
+Never delete existing student records or financial information during this upgrade.

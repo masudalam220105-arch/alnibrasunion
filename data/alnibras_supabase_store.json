@@ -1,0 +1,411 @@
+{
+  "state": {
+    "users": [
+      {
+        "uid": "admin_super",
+        "fullName": "SUPER ADMIN",
+        "username": "alnibras@admin",
+        "studentId": "ADM-0001",
+        "rollNumber": "EXEC-01",
+        "role": "admin",
+        "status": "active",
+        "contactEmail": "masudalam220105@gmail.com",
+        "contactPhone": "+91-98450-11000",
+        "avatarUrl": "/images/avatar_admin_portrait.jpg",
+        "department": "Central Union Directorate",
+        "classInfo": "11th Batch of DHBC",
+        "createdAt": "2026-08-01T08:00:00.000Z",
+        "updatedAt": "2026-11-06T09:00:00.000Z"
+      }
+    ],
+    "announcements": [],
+    "notices": [],
+    "events": [],
+    "gallery": [
+      {
+        "id": "gal_1794239562692",
+        "title": "sonflower",
+        "caption": "yellow colour",
+        "imageUrl": "data:image/webp;base64,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",
+        "category": "Academic Symposium",
+        "status": "published",
+        "destination": "public",
+        "showOnHomepage": true,
+        "authorId": "admin_super",
+        "createdAt": "2026-11-09T15:52:42.692Z",
+        "updatedAt": "2026-11-09T15:52:42.692Z"
+      },
+      {
+        "id": "gal_1794239562547",
+        "title": "sonflower",
+        "caption": "yellow colour",
+        "imageUrl": "data:image/webp;base64,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",
+        "category": "Academic Symposium",
+        "status": "published",
+        "destination": "public",
+        "showOnHomepage": true,
+        "authorId": "admin_super",
+        "createdAt": "2026-11-09T15:52:42.547Z",
+        "updatedAt": "2026-11-09T15:52:42.547Z"
+      }
+    ],
+    "videos": [],
+    "resources": [],
+    "messages": [],
+    "notifications": [],
+    "activityLogs": [
+      {
+        "id": "log_1794239562692",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "CONTENT_PUBLICATION",
+        "details": "Saved gallery archive entry \"sonflower\" (published)",
+        "targetId": "gal_1794239562692",
+        "createdAt": "2026-11-09T15:52:42.692Z"
+      },
+      {
+        "id": "log_1794239562547",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "CONTENT_PUBLICATION",
+        "details": "Saved gallery archive entry \"sonflower\" (published)",
+        "targetId": "gal_1794239562547",
+        "createdAt": "2026-11-09T15:52:42.547Z"
+      },
+      {
+        "id": "log_1794239440671",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "CONTENT_DELETION",
+        "details": "Removed gallery photograph \"sonflower\"",
+        "targetId": "gal_1794239421507",
+        "createdAt": "2026-11-09T15:50:40.671Z"
+      },
+      {
+        "id": "log_1794239421507",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "CONTENT_PUBLICATION",
+        "details": "Saved gallery archive entry \"sonflower\" (published)",
+        "targetId": "gal_1794239421507",
+        "createdAt": "2026-11-09T15:50:21.506Z"
+      },
+      {
+        "id": "log_1794239174323",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "LOGIN",
+        "details": "Authenticated session started for SUPER ADMIN (@alnibras@admin)",
+        "targetId": "admin_super",
+        "createdAt": "2026-11-09T15:46:14.323Z"
+      },
+      {
+        "id": "log_1794239153472",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "LOGOUT",
+        "details": "Session signed out by SUPER ADMIN (@alnibras@admin)",
+        "targetId": "admin_super",
+        "createdAt": "2026-11-09T15:45:53.472Z"
+      },
+      {
+        "id": "log_1794238886879",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "LOGIN",
+        "details": "Authenticated session started for SUPER ADMIN (@alnibras@admin)",
+        "targetId": "admin_super",
+        "createdAt": "2026-11-09T15:41:26.879Z"
+      },
+      {
+        "id": "log_1794237739088",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "LOGOUT",
+        "details": "Session signed out by SUPER ADMIN (@alnibras@admin)",
+        "targetId": "admin_super",
+        "createdAt": "2026-11-09T15:22:19.088Z"
+      },
+      {
+        "id": "log_1794237696871",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "LOGIN",
+        "details": "Authenticated session started for SUPER ADMIN (@alnibras@admin)",
+        "targetId": "admin_super",
+        "createdAt": "2026-11-09T15:21:36.871Z"
+      },
+      {
+        "id": "log_reset_init",
+        "actorId": "admin_super",
+        "actorName": "SUPER ADMIN",
+        "actionType": "CONTENT_DELETION",
+        "details": "Completed full database backup and verified application data reset. Preserved SUPER ADMIN account and core infrastructure.",
+        "targetId": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      }
+    ],
+    "settings": {
+      "unionName": "Al-Nibras Class Union",
+      "academicSession": "2026–2027 Academic Session",
+      "motto": "Connecting Students, Building Community, Creating Opportunities.",
+      "missionStatement": "Al-Nibras Class Union unites students of the 11th Batch of DHBC through academic leadership, transparent governance, cultural programs, and community service.",
+      "facultyAdvisor": "Prof. Dr. Tariq Al-Hashimi",
+      "unionPresident": "Union Executive Council",
+      "generalSecretary": "Union Secretariat",
+      "officeLocation": "Al-Nibras Union Secretariat, Suite 204, DHBC Campus",
+      "officeEmail": "secretariat@alnibras-union.edu",
+      "enableStudentFinancialStatement": true,
+      "updatedBy": "admin_super",
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    },
+    "branding": {
+      "logoUrl": "/assets/aistudio/al-nibras_logo_3b0dfbfe.png",
+      "unionTitle": "Al-Nibras Class Union",
+      "tagline": "Connecting Students, Building Community, Creating Opportunities.",
+      "batchSubtitle": "11th Batch of DHBC",
+      "navbarHeightPx": 44,
+      "sidebarHeightPx": 40,
+      "certificateLogoHeightPx": 72,
+      "receiptLogoHeightPx": 56,
+      "showInNavbar": true,
+      "showInSidebars": true,
+      "showInLogin": true,
+      "showInCertificates": true,
+      "showInReceipts": true,
+      "showInFooter": true,
+      "placement": {
+        "navbar": true,
+        "sidebar": true,
+        "login": true,
+        "certificates": true,
+        "receipts": true,
+        "footer": true
+      },
+      "updatedBy": "admin_super",
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    },
+    "homepageConfig": {
+      "logoUrl": "/assets/aistudio/al-nibras_logo_3b0dfbfe.png",
+      "unionName": "Al-Nibras Class Union",
+      "unionSubtitle": "11th Batch of DHBC",
+      "heroBadgeText": "Official Class Union Portal · 11th Batch of DHBC",
+      "heroHeading": "Welcome to Al-Nibras",
+      "heroSubheading": "Connecting Students, Building Community, Creating Opportunities.",
+      "heroBannerImageUrl": "/images/hero_campus_library.jpg",
+      "heroBackgroundUrl": "/images/hero_campus_library.jpg",
+      "primaryCtaText": "Access Member Portal",
+      "secondaryCtaText": "Discover Al-Nibras",
+      "welcomeHeading": "Welcome to Al-Nibras",
+      "welcomeDescription": "Connecting Students, Building Community, Creating Opportunities.",
+      "aboutHeading": "About Al-Nibras",
+      "aboutMission": "Al-Nibras Class Union is dedicated to fostering academic excellence, ethical leadership, and community solidarity among the scholars of the 11th Batch of DHBC.",
+      "aboutVision": "Building an enduring educational community that connects students, supports intellectual growth, and creates meaningful academic and social opportunities.",
+      "contactHeading": "Contact Information & Secretariat Desk",
+      "contactEmail": "secretariat@alnibras-union.edu",
+      "contactPhone": "+91 98470 22105",
+      "contactAddress": "Al-Nibras Union Secretariat, Suite 204, DHBC Campus, Kerala, India",
+      "officeHours": "Monday – Saturday · 9:00 AM to 5:00 PM IST",
+      "socialLinks": {
+        "facebook": "https://facebook.com/alnibras.union",
+        "instagram": "https://instagram.com/alnibras.union",
+        "youtube": "https://youtube.com/@alnibrasunion",
+        "whatsapp": "https://wa.me/919847022105"
+      },
+      "footerDescription": "Official Class Union Portal of Al-Nibras (11th Batch of DHBC). Connecting Students, Building Community, Creating Opportunities.",
+      "footerCopyright": "© 2026 Al-Nibras Class Union. All Rights Reserved.",
+      "sections": [
+        {
+          "id": "hero",
+          "label": "Hero Slideshow Banner",
+          "visible": true,
+          "order": 1
+        },
+        {
+          "id": "about",
+          "label": "About Al-Nibras",
+          "visible": true,
+          "order": 2
+        },
+        {
+          "id": "announcements",
+          "label": "Notices & Announcements",
+          "visible": true,
+          "order": 3
+        },
+        {
+          "id": "events",
+          "label": "Upcoming Events & Programs",
+          "visible": true,
+          "order": 4
+        },
+        {
+          "id": "gallery",
+          "label": "Public Photo Gallery",
+          "visible": true,
+          "order": 5
+        },
+        {
+          "id": "videos",
+          "label": "Public Video Gallery",
+          "visible": true,
+          "order": 6
+        },
+        {
+          "id": "contact",
+          "label": "Contact Information",
+          "visible": true,
+          "order": 7
+        }
+      ],
+      "status": "published",
+      "updatedBy": "admin_super",
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    },
+    "fines": [],
+    "chatMessages": [],
+    "programResults": [],
+    "studentResults": [],
+    "studentPoints": [],
+    "pointTransactions": [],
+    "certificates": [],
+    "certificateSettings": {
+      "title": "CERTIFICATE OF ACHIEVEMENT",
+      "subtitle": "Proudly presented by the Al-Nibras Class Union Directorate",
+      "authorizedByName": "SUPER ADMIN",
+      "authorizedByDesignation": "Union Directorate & Chief Coordinator",
+      "logoUrl": "/assets/aistudio/al-nibras_logo_3b0dfbfe.png",
+      "unionName": "Al-Nibras Class Union",
+      "footerNote": "Official Academic & Cultural Distinction Record · 11th Batch of DHBC",
+      "showQrCode": false,
+      "updatedAt": "2026-11-06T09:00:00.000Z"
+    },
+    "calendarEvents": [],
+    "customTypes": [
+      {
+        "id": "ct_fine_1",
+        "module": "fines",
+        "name": "Late Attendance Fine",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_fine_2",
+        "module": "fines",
+        "name": "Library Overdue Fine",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_fine_3",
+        "module": "fines",
+        "name": "Union Discipline Fine",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_inc_1",
+        "module": "incomeCategory",
+        "name": "Union Membership Fee",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_inc_2",
+        "module": "incomeCategory",
+        "name": "Event Sponsorship",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_inc_3",
+        "module": "incomeCategory",
+        "name": "Alumni Contribution",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_exp_1",
+        "module": "expenseCategory",
+        "name": "Academic Program Expense",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_exp_2",
+        "module": "expenseCategory",
+        "name": "Printing & Stationery",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "ct_exp_3",
+        "module": "expenseCategory",
+        "name": "Refreshments & Hospitality",
+        "createdBy": "admin_super",
+        "createdAt": "2026-11-06T09:00:00.000Z"
+      }
+    ],
+    "passwordResetLogs": [],
+    "income": [],
+    "expenses": [],
+    "studentContributions": [],
+    "studentDues": [],
+    "financialReceipts": [],
+    "financialAuditLogs": [],
+    "slideshow": [
+      {
+        "id": "slide_1",
+        "title": "Welcome to Al-Nibras",
+        "subtitle": "Connecting Students, Building Community, Creating Opportunities.",
+        "imageUrl": "/images/hero_campus_library.jpg",
+        "ctaText": "Member Login",
+        "ctaHref": "#login",
+        "order": 1,
+        "visible": true,
+        "createdAt": "2026-11-06T09:00:00.000Z",
+        "updatedAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "slide_2",
+        "title": "Academic Excellence & Leadership",
+        "subtitle": "Empowering scholars of the 11th Batch of DHBC through symposia, research, and fellowship.",
+        "imageUrl": "/images/union_hall_symposium.jpg",
+        "ctaText": "Explore Union Charter",
+        "ctaHref": "#about",
+        "order": 2,
+        "visible": true,
+        "createdAt": "2026-11-06T09:00:00.000Z",
+        "updatedAt": "2026-11-06T09:00:00.000Z"
+      },
+      {
+        "id": "slide_3",
+        "title": "Cultural Heritage & Literary Arts",
+        "subtitle": "Celebrating classical scholarship, calligraphy, and intellectual dialogue across our community.",
+        "imageUrl": "/images/gallery_convocation.jpg",
+        "ctaText": "View Galleries",
+        "ctaHref": "#gallery",
+        "order": 3,
+        "visible": true,
+        "createdAt": "2026-11-06T09:00:00.000Z",
+        "updatedAt": "2026-11-06T09:00:00.000Z"
+      }
+    ],
+    "committeeMembers": [],
+    "feedback": [],
+    "backupMeta": {
+      "backupId": "BKP-ALNIBRAS-PRE-RESET-2026",
+      "createdAt": "2026-11-09T15:20:14.072Z",
+      "backupFilePath": "/tmp/alnibras_portal_backup_pre_reset.json",
+      "verifiedRestorable": true,
+      "recordsBackedUp": 1,
+      "preservedSuperAdminUid": "admin_super",
+      "resetCompletedAt": "2026-11-09T15:20:14.072Z"
+    }
+  },
+  "credentials": {
+    "admin_super": "pbkdf2_v1$e18d3fda94d2533a"
+  },
+  "deletedUserUids": [],
+  "schemaVersion": 2
+}
