@@ -10,6 +10,7 @@ import {
   scopeStateForActor,
   type PersistedServerStore,
 } from '@/lib/server-db';
+import { emitPortalUpdate } from '@/lib/portal-events';
 import {
   ensureServerHydratedFromSupabase,
   isSupabaseAdminConfigured,
@@ -97,6 +98,13 @@ export async function GET(req: NextRequest) {
   if (isSupabaseAdminConfigured()) {
     await ensureServerHydratedFromSupabase(store);
   }
+  const versionOnly = req.nextUrl.searchParams.get('versionOnly') === '1';
+  if (versionOnly) {
+    return NextResponse.json({
+      ok: true,
+      version: store.mutationVersion || 1,
+    });
+  }
   const fallbackActorUid = req.nextUrl.searchParams.get('actorUid') || '';
   const resolved = resolveAuthenticatedActor(req, store, {
     requireCsrf: false,
@@ -106,6 +114,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    version: store.mutationVersion || 1,
     user: actor,
     state: scopeStateForActor(store.state, actor),
   });
@@ -125,12 +134,20 @@ export async function POST(req: NextRequest) {
     : undefined;
 
   const response = await handlePortalPost(req, store);
+  const didMutate = (store.mutationVersion || 1) !== prevMutationVersion;
 
-  if (useRemoteSync && prevState && (store.mutationVersion || 1) !== prevMutationVersion) {
-    const syncRes = await syncStoreDeltaToSupabaseServer(prevState, store, {
+  if (didMutate) {
+    emitPortalUpdate(store.mutationVersion || 1, 'portal');
+  }
+
+  let syncRes: { warning?: string } = {};
+  if (useRemoteSync && prevState && didMutate) {
+    syncRes = await syncStoreDeltaToSupabaseServer(prevState, store, {
       prevCredFingerprint,
     });
+  }
 
+  if (didMutate) {
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       try {
@@ -139,8 +156,13 @@ export async function POST(req: NextRequest) {
         if (json && json.ok === true) {
           const updatedJson = {
             ...json,
-            syncedToSupabase: !syncRes.warning,
-            ...(syncRes.warning ? { syncWarning: syncRes.warning } : {}),
+            version: store.mutationVersion || 1,
+            ...(useRemoteSync && prevState
+              ? {
+                  syncedToSupabase: !syncRes.warning,
+                  ...(syncRes.warning ? { syncWarning: syncRes.warning } : {}),
+                }
+              : {}),
           };
           const headers = new Headers(response.headers);
           headers.delete('content-length');
@@ -1917,7 +1939,8 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
     const description = sanitizeText(String(body.description || ''), 2000);
     const programDate = String(body.programDate || getIndiaDateISO());
     const publicationDate = String(body.publicationDate || getIndiaDateISO());
-    const category = sanitizeText(String(body.category || 'Debate'), 80);
+    const programVenue = sanitizeText(String(body.programVenue || body.venue || ''), 160);
+    const category = sanitizeText(String(body.category || 'General'), 80);
     const status = body.status === 'draft' ? 'draft' : 'published';
     const certificateUrl = sanitizeMediaUrl(body.certificateUrl, '');
     const certificateName = sanitizeText(String(body.certificateName || ''), 150);
@@ -2114,6 +2137,7 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
           programName,
           programCategory: category,
           programDate,
+          programVenue: programVenue || undefined,
           publicationDate,
           studentUid,
           studentId,
@@ -2128,6 +2152,7 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
           authorizedByDesignation:
             certSettings.authorizedByDesignation || 'Director General · AL-NIBRAS Class Union',
           unionName: certSettings.unionName || state.settings.unionName || 'AL-NIBRAS Class Union',
+          certificateTitle: certificateTitle || undefined,
           qrVerificationCode: `https://alnibras-union.edu/verify/${certNumber}`,
           status: status === 'published' ? 'active' : 'revoked',
           createdAt: existingCertIdx >= 0 ? state.certificates[existingCertIdx].createdAt : now,
@@ -2217,6 +2242,8 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
       description,
       programDate,
       publicationDate,
+      venue: programVenue || undefined,
+      programVenue: programVenue || undefined,
       category,
       status,
       participants: normalizedParticipants,

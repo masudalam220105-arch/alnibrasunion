@@ -34,6 +34,15 @@ export function LoginModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    setEmail('');
+    setCloudPassword('');
+    setUsername('');
+    setPassword('');
+    setError(null);
+    setStatusMessage(null);
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !loading) {
@@ -291,7 +300,7 @@ export function LoginModal({
                       <div className="flex-grow border-t border-[#E5EAE6] dark:border-[#1B3B31]" />
                     </div>
 
-                    <form onSubmit={handleCloudEmailSubmit} className="space-y-3.5" noValidate>
+                    <form onSubmit={handleCloudEmailSubmit} autoComplete="off" className="space-y-3.5" noValidate>
                       <div>
                         <label
                           htmlFor="portal-supabase-email"
@@ -303,9 +312,16 @@ export function LoginModal({
                           <Mail className="w-4 h-4 text-[#718078] group-focus-within:text-[#064E3B] dark:group-focus-within:text-[#D4AF37] transition-colors absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                           <input
                             id="portal-supabase-email"
-                            name="email"
+                            name="portal_cloud_identifier"
                             type="email"
-                            autoComplete="email"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            data-bwignore="true"
+                            data-form-type="other"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="student@alnibras-union.edu"
@@ -326,9 +342,13 @@ export function LoginModal({
                           <Lock className="w-4 h-4 text-[#718078] group-focus-within:text-[#064E3B] dark:group-focus-within:text-[#D4AF37] transition-colors absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                           <input
                             id="portal-supabase-password"
-                            name="cloudPassword"
+                            name="portal_cloud_secret"
                             type="password"
-                            autoComplete="current-password"
+                            autoComplete="new-password"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            data-bwignore="true"
+                            data-form-type="other"
                             value={cloudPassword}
                             onChange={(e) => setCloudPassword(e.target.value)}
                             placeholder="Enter your password"

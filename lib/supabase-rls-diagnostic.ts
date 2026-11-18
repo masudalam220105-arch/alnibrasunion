@@ -69,6 +69,7 @@ export const NORMALIZED_SENSITIVE_TABLES = [
   'direct_messages',
   'feedback_records',
   'chat_messages',
+  'messages',
 ] as const;
 
 export type ProbeFetchFn = (input: string, init?: RequestInit) => Promise<Response>;

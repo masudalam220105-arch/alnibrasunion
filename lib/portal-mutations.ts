@@ -1255,7 +1255,8 @@ export function applyPortalMutation(
     const description = sanitizeText(String(body.description || ''), 2000);
     const programDate = String(body.programDate || getIndiaDateISO());
     const publicationDate = String(body.publicationDate || getIndiaDateISO());
-    const category = sanitizeText(String(body.category || 'Debate'), 80);
+    const programVenue = sanitizeText(String(body.programVenue || body.venue || ''), 160);
+    const category = sanitizeText(String(body.category || 'General'), 80);
     const status = body.status === 'draft' ? 'draft' : 'published';
     const certificateUrl = sanitizeMediaUrl(body.certificateUrl, '');
     const certificateName = sanitizeText(String(body.certificateName || ''), 150);
@@ -1427,6 +1428,7 @@ export function applyPortalMutation(
           programName,
           programCategory: category,
           programDate,
+          programVenue: programVenue || undefined,
           publicationDate,
           studentUid,
           studentId,
@@ -1441,6 +1443,7 @@ export function applyPortalMutation(
           authorizedByDesignation:
             certSettings.authorizedByDesignation || 'Director General · AL-NIBRAS Class Union',
           unionName: certSettings.unionName || state.settings.unionName || 'AL-NIBRAS Class Union',
+          certificateTitle: certificateTitle || undefined,
           qrVerificationCode: `https://alnibras-union.edu/verify/${certNumber}`,
           status: status === 'published' ? 'active' : 'revoked',
           createdAt: existingCertIdx >= 0 ? state.certificates[existingCertIdx].createdAt : now,
@@ -1523,6 +1526,8 @@ export function applyPortalMutation(
       description,
       programDate,
       publicationDate,
+      venue: programVenue || undefined,
+      programVenue: programVenue || undefined,
       category,
       status,
       participants: normalizedParticipants,

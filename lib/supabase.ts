@@ -61,6 +61,7 @@ export const SUPABASE_TABLES = [
   'financial_audit_logs',
   'direct_messages',
   'chat_messages',
+  'messages',
   'feedback_records',
   'notifications',
   'activity_logs',

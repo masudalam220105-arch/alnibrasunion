@@ -178,9 +178,14 @@ export function StudentResultsAndPointsView({
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        downloadCertificateAsPdf(cert, state.certificateSettings, state.branding)
-                      }
+                      onClick={() => {
+                        const matchedProg = (state.programResults || []).find(
+                          (pr) => pr.id === cert.programId
+                        );
+                        void downloadCertificateAsPdf(cert, state.certificateSettings, state.branding, {
+                          fallbackVenue: matchedProg?.programVenue || matchedProg?.venue,
+                        });
+                      }}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0B192C] hover:bg-[#162944] text-xs font-semibold text-white cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5 text-[#C5A059]" />
@@ -197,6 +202,14 @@ export function StudentResultsAndPointsView({
           certificate={previewCertificate}
           settings={state.certificateSettings}
           branding={state.branding}
+          fallbackVenue={
+            previewCertificate
+              ? (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                  ?.programVenue ||
+                (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                  ?.venue
+              : undefined
+          }
           onClose={() => setPreviewCertificate(null)}
         />
       </div>
@@ -323,9 +336,14 @@ export function StudentResultsAndPointsView({
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        downloadCertificateAsPdf(cert, state.certificateSettings, state.branding)
-                      }
+                      onClick={() => {
+                        const matchedProg = (state.programResults || []).find(
+                          (pr) => pr.id === cert.programId
+                        );
+                        void downloadCertificateAsPdf(cert, state.certificateSettings, state.branding, {
+                          fallbackVenue: matchedProg?.programVenue || matchedProg?.venue,
+                        });
+                      }}
                       data-testid={`student-download-cert-${sr.id}`}
                       className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#C59B27] hover:bg-[#b0891f] text-[#07111F] text-xs font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer"
                     >
@@ -343,6 +361,14 @@ export function StudentResultsAndPointsView({
         certificate={previewCertificate}
         settings={state.certificateSettings}
         branding={state.branding}
+        fallbackVenue={
+          previewCertificate
+            ? (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                ?.programVenue ||
+              (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                ?.venue
+            : undefined
+        }
         onClose={() => setPreviewCertificate(null)}
       />
     </div>

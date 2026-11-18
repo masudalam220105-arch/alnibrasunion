@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Award, CheckCircle2, Download, Medal, Printer, ShieldCheck, Trophy, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Award, Calendar, Download, FileBadge, MapPin, Printer, Upload, X } from 'lucide-react';
 import type { BrandingConfig, CertificateRecord, CertificateSettings } from '@/lib/types';
 
 export const DEFAULT_OFFICIAL_LOGO_URL = '/assets/aistudio/al-nibras_logo_3b0dfbfe.png';
+
+export type CertificateTitleOption =
+  | 'Certificate of Achievement'
+  | 'Certificate of Participation';
 
 export interface PositionBadgeStyle {
   badgeTitle: string;
@@ -27,50 +31,67 @@ export function getPositionCertificateTheme(position: string, grade: string): Po
       secondaryColor: '#9A7515',
       bgTint: '#FEF9E7',
       borderHex: '#C59B27',
-      textHex: '#785A0A',
+      textHex: '#0B1F3A',
     };
   }
   if (position === '2nd Place') {
     return {
       badgeTitle: '2ND POSITION',
-      ribbonLabel: 'SECOND PLACE LAUREATE · SILVER HONORS',
+      ribbonLabel: 'SECOND PLACE LAUREATE',
       tierLabel: 'DISTINGUISHED RUNNER-UP',
       primaryColor: '#64748B',
       secondaryColor: '#334155',
       bgTint: '#F1F5F9',
-      borderHex: '#94A3B8',
-      textHex: '#1E293B',
+      borderHex: '#C59B27',
+      textHex: '#0B1F3A',
     };
   }
   if (position === '3rd Place') {
     return {
       badgeTitle: '3RD POSITION',
-      ribbonLabel: 'THIRD PLACE LAUREATE · BRONZE HONORS',
+      ribbonLabel: 'THIRD PLACE LAUREATE',
       tierLabel: 'HONORABLE PODIUM LAUREATE',
       primaryColor: '#B45309',
       secondaryColor: '#92400E',
       bgTint: '#FFFBEB',
-      borderHex: '#D97706',
-      textHex: '#78350F',
+      borderHex: '#C59B27',
+      textHex: '#0B1F3A',
     };
   }
   return {
-    badgeTitle: grade !== 'None' ? `GRADE ${grade} MERIT` : 'OFFICIAL MERIT',
-    ribbonLabel: 'SCHOLASTIC EXCELLENCE & MERIT CONFERMENT',
-    tierLabel: 'DISTINGUISHED SCHOLAR',
-    primaryColor: '#0C1A2E',
+    badgeTitle: grade !== 'None' ? `GRADE ${grade}` : 'PARTICIPANT',
+    ribbonLabel: 'OFFICIAL CONFERMENT',
+    tierLabel: 'SCHOLAR',
+    primaryColor: '#0B1F3A',
     secondaryColor: '#C59B27',
     bgTint: '#F8FAFC',
     borderHex: '#C59B27',
-    textHex: '#0C1A2E',
+    textHex: '#0B1F3A',
   };
 }
 
+function resolveCertificateTitle(
+  cert: CertificateRecord,
+  settings?: CertificateSettings,
+  override?: CertificateTitleOption
+): CertificateTitleOption {
+  if (override) return override;
+  const candidate = (cert.certificateTitle || settings?.title || '').toLowerCase();
+  if (candidate.includes('participation')) {
+    return 'Certificate of Participation';
+  }
+  return 'Certificate of Achievement';
+}
+
 /**
- * Encapsulates a JPEG Data URL into a valid single-page A4 Landscape PDF 1.4 binary Uint8Array
- * Page size: 841.89pt x 595.28pt (297mm x 210mm A4 Landscape)
+ * Encapsulates a high-resolution 300 DPI JPEG Data URL into a valid single-page
+ * A4 Landscape PDF 1.4 binary Uint8Array (841.89pt x 595.28pt = 297mm x 210mm).
  */
-function buildPdfFromJpegDataUrl(jpegDataUrl: string, pixelWidth: number, pixelHeight: number): Uint8Array {
+function buildPdfFromJpegDataUrl(
+  jpegDataUrl: string,
+  pixelWidth: number,
+  pixelHeight: number
+): Uint8Array {
   const base64 = jpegDataUrl.split(',')[1] || '';
   const binaryStr = atob(base64);
   const jpegBytes = new Uint8Array(binaryStr.length);
@@ -150,342 +171,449 @@ function loadImageElement(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
+function drawOrnamentalCorner(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dirX: 1 | -1,
+  dirY: 1 | -1
+) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(dirX, dirY);
+
+  // Outer Navy Accent L-Angle
+  ctx.strokeStyle = '#0B1F3A';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(0, 140);
+  ctx.lineTo(0, 0);
+  ctx.lineTo(140, 0);
+  ctx.stroke();
+
+  // Inner Gold Ornamental Curve & Scrollwork
+  ctx.strokeStyle = '#C59B27';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(22, 165);
+  ctx.lineTo(22, 22);
+  ctx.lineTo(165, 22);
+  ctx.stroke();
+
+  // Corner Flourish Arcs
+  ctx.strokeStyle = '#D4AF37';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(22, 92);
+  ctx.bezierCurveTo(64, 92, 92, 64, 92, 22);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(46, 128);
+  ctx.bezierCurveTo(46, 76, 76, 46, 128, 46);
+  ctx.stroke();
+
+  // Gold Corner Medallion Dot
+  ctx.fillStyle = '#C59B27';
+  ctx.beginPath();
+  ctx.arc(38, 38, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#0B1F3A';
+  ctx.beginPath();
+  ctx.arc(38, 38, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawGoldenAwardEmblem(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Dual Ribbon Tails (Navy + Gold)
+  ctx.fillStyle = '#0B1F3A';
+  ctx.beginPath();
+  ctx.moveTo(-48, 52);
+  ctx.lineTo(-74, 152);
+  ctx.lineTo(-34, 126);
+  ctx.lineTo(-8, 156);
+  ctx.lineTo(-4, 58);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(48, 52);
+  ctx.lineTo(74, 152);
+  ctx.lineTo(34, 126);
+  ctx.lineTo(8, 156);
+  ctx.lineTo(4, 58);
+  ctx.closePath();
+  ctx.fill();
+
+  // Scalloped Gold Starburst Outer Ring
+  const spikes = 24;
+  const outerR = 78;
+  const innerR = 66;
+  const goldGrad = ctx.createRadialGradient(-18, -18, 12, 0, 0, outerR);
+  goldGrad.addColorStop(0, '#F5DF8D');
+  goldGrad.addColorStop(0.55, '#D4AF37');
+  goldGrad.addColorStop(1, '#9A7515');
+
+  ctx.fillStyle = goldGrad;
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (i * Math.PI) / spikes - Math.PI / 2;
+    const px = Math.cos(angle) * r;
+    const py = Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#8F6A10';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Navy Inner Core
+  ctx.fillStyle = '#0B1F3A';
+  ctx.beginPath();
+  ctx.arc(0, 0, 50, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#E6C665';
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+
+  // Decorative 8-Point Gold Star Inside Medallion (pure ornament, zero text)
+  ctx.fillStyle = '#E6C665';
+  ctx.beginPath();
+  for (let i = 0; i < 16; i++) {
+    const r = i % 2 === 0 ? 28 : 11;
+    const angle = (i * Math.PI) / 8 - Math.PI / 2;
+    const px = Math.cos(angle) * r;
+    const py = Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cx: number,
+  y: number,
+  maxWidth: number,
+  fontTemplate: (size: number) => string,
+  baseSize: number,
+  minSize: number
+) {
+  let size = baseSize;
+  ctx.font = fontTemplate(size);
+  while (size > minSize && ctx.measureText(text).width > maxWidth) {
+    size -= 2;
+    ctx.font = fontTemplate(size);
+  }
+  ctx.fillText(text, cx, y);
+}
+
 /**
- * Renders the redesigned AL-NIBRAS Certificate of Achievement onto an A4 Landscape HTML5 Canvas
- * with Navy Blue decorative corner waves, Golden curved ribbons, Official AL-NIBRAS Logo,
- * dynamic Position badge (1ST POSITION / 2ND POSITION / 3RD POSITION), and ZERO QR code.
+ * Generates an exact 300 DPI A4 Landscape (3508 x 2480 px) print-ready PDF
+ * containing ONLY the 9 specified certificate elements in a Navy Blue, Gold, and White composition.
  */
 export async function downloadCertificateAsPdf(
   cert: CertificateRecord,
   settings?: CertificateSettings,
-  customLogoOrBranding?: BrandingConfig | string
+  customLogoOrBranding?: BrandingConfig | string,
+  options?: {
+    certificateTitle?: CertificateTitleOption;
+    fallbackVenue?: string;
+  }
 ): Promise<void> {
-  const width = 1754; // A4 Landscape at 150 DPI
-  const height = 1240;
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // Proceed cleanly with loaded fonts
+    }
+  }
+
+  // Exact A4 Landscape (297mm x 210mm) at 300 DPI = 3508 x 2480 px
+  const width = 3508;
+  const height = 2480;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const unionName = settings?.unionName || cert.unionName || 'AL-NIBRAS CLASS UNION';
-  const title = settings?.title || 'CERTIFICATE OF ACHIEVEMENT';
-  const subtitle = settings?.subtitle || 'OFFICIAL HONORS & SCHOLASTIC MERIT CONFERMENT';
-  const authName = settings?.authorizedByName || cert.authorizedByName || 'SUPER ADMIN';
-  const authRole =
-    settings?.authorizedByDesignation ||
-    cert.authorizedByDesignation ||
-    'Director General · AL-NIBRAS Class Union';
+  // Resolve ONLY the 9 permitted fields
+  const organizationName = (
+    cert.unionName ||
+    settings?.unionName ||
+    (typeof customLogoOrBranding === 'object' ? customLogoOrBranding?.unionTitle : '') ||
+    'AL-NIBRAS CLASS UNION'
+  ).trim();
+
   const customLogoUrl =
     typeof customLogoOrBranding === 'string'
       ? customLogoOrBranding
       : customLogoOrBranding?.logoUrl;
   const logoSrc = customLogoUrl || DEFAULT_OFFICIAL_LOGO_URL;
 
-  const posTheme = getPositionCertificateTheme(cert.position, cert.grade);
+  const certificateTitle = resolveCertificateTitle(cert, settings, options?.certificateTitle);
+  const participantName = (cert.studentName || '').trim();
+  const programName = (cert.programName || '').trim();
+  const programDate = (cert.programDate || '').trim();
+  const programVenue = (cert.programVenue || options?.fallbackVenue || '').trim() || '—';
+  const certificateId = (cert.certificateNumber || '').trim();
+  const dateOfIssue = (cert.publicationDate || '').trim();
 
-  // 1. White / Ivory Parchment Background
-  ctx.fillStyle = '#FDFBF7';
+  // 1. Crisp Pure White Background (#FFFFFF)
+  ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, width, height);
 
-  // 2. Navy Blue Decorative Corner Waves (Top-Left & Bottom-Right)
-  ctx.save();
-  ctx.fillStyle = '#0C1A2E';
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(480, 0);
-  ctx.bezierCurveTo(340, 90, 170, 220, 0, 420);
-  ctx.closePath();
-  ctx.fill();
+  // Subtle Navy corner trim strips (minimal luxury accent)
+  ctx.fillStyle = '#0B1F3A';
+  ctx.fillRect(0, 0, width, 28);
+  ctx.fillRect(0, height - 28, width, 28);
 
-  ctx.beginPath();
-  ctx.moveTo(width, height);
-  ctx.lineTo(width - 480, height);
-  ctx.bezierCurveTo(width - 340, height - 90, width - 170, height - 220, width, height - 420);
-  ctx.closePath();
-  ctx.fill();
-
-  // Golden Curved Decorative Ribbons along the Navy Waves
+  // 2. Double-Line Golden Border Frame
+  // Outer border
   ctx.strokeStyle = '#C59B27';
-  ctx.lineWidth = 14;
-  ctx.beginPath();
-  ctx.moveTo(510, 0);
-  ctx.bezierCurveTo(360, 110, 185, 245, 0, 455);
-  ctx.stroke();
+  ctx.lineWidth = 10;
+  ctx.strokeRect(96, 96, width - 192, height - 192);
 
-  ctx.strokeStyle = '#E6C665';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(535, 0);
-  ctx.bezierCurveTo(380, 125, 200, 265, 0, 480);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#C59B27';
-  ctx.lineWidth = 14;
-  ctx.beginPath();
-  ctx.moveTo(width - 510, height);
-  ctx.bezierCurveTo(width - 360, height - 110, width - 185, height - 245, width, height - 455);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#E6C665';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(width - 535, height);
-  ctx.bezierCurveTo(width - 380, height - 125, width - 200, height - 265, width, height - 480);
-  ctx.stroke();
-  ctx.restore();
-
-  // 3. Outer & Inner Gold Filigree Frame
-  ctx.strokeStyle = '#0C1A2E';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(54, 54, width - 108, height - 108);
-
-  ctx.strokeStyle = '#C59B27';
+  // Subtle Navy hairline inside outer border
+  ctx.strokeStyle = '#0B1F3A';
   ctx.lineWidth = 3;
-  ctx.strokeRect(70, 70, width - 140, height - 140);
+  ctx.strokeRect(122, 122, width - 244, height - 244);
 
-  // 4. Official AL-NIBRAS Logo at Top Center
+  // Inner golden border
+  ctx.strokeStyle = '#D4AF37';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(142, 142, width - 284, height - 284);
+
+  // Four Ornamental Corner Decorations
+  drawOrnamentalCorner(ctx, 162, 162, 1, 1);
+  drawOrnamentalCorner(ctx, width - 162, 162, -1, 1);
+  drawOrnamentalCorner(ctx, 162, height - 162, 1, -1);
+  drawOrnamentalCorner(ctx, width - 162, height - 162, -1, -1);
+
+  // 3. Subtle Organization Logo Watermark in Center Background
   const logoImg = await loadImageElement(logoSrc);
   if (logoImg) {
-    const logoSize = 135;
-    ctx.drawImage(logoImg, width / 2 - logoSize / 2, 86, logoSize, logoSize);
-  } else {
-    ctx.fillStyle = '#0C1A2E';
-    ctx.beginPath();
-    ctx.arc(width / 2, 150, 48, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#C59B27';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = '#E6C665';
-    ctx.font = 'bold 34px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('AN', width / 2, 162);
+    ctx.save();
+    ctx.globalAlpha = 0.055;
+    const wmSize = 1080;
+    ctx.drawImage(logoImg, width / 2 - wmSize / 2, height / 2 - wmSize / 2 + 40, wmSize, wmSize);
+    ctx.restore();
   }
 
-  // 5. Top-Right Position Seal Badge (Dynamic 1ST / 2ND / 3RD POSITION)
-  const sealX = width - 230;
-  const sealY = 210;
-  ctx.save();
-  // Ribbon tails
-  ctx.fillStyle = posTheme.secondaryColor;
-  ctx.beginPath();
-  ctx.moveTo(sealX - 38, sealY + 55);
-  ctx.lineTo(sealX - 58, sealY + 145);
-  ctx.lineTo(sealX - 22, sealY + 125);
-  ctx.lineTo(sealX - 4, sealY + 150);
-  ctx.lineTo(sealX - 6, sealY + 60);
-  ctx.closePath();
-  ctx.fill();
+  // 4. Top Section: Organization Logo & Organization Name (#1 & #2)
+  const logoBoxY = 230;
+  const logoSize = 210;
+  if (logoImg) {
+    ctx.drawImage(logoImg, width / 2 - logoSize / 2, logoBoxY, logoSize, logoSize);
+  } else {
+    ctx.fillStyle = '#0B1F3A';
+    ctx.beginPath();
+    ctx.arc(width / 2, logoBoxY + logoSize / 2, 95, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#C59B27';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+  }
 
-  ctx.beginPath();
-  ctx.moveTo(sealX + 38, sealY + 55);
-  ctx.lineTo(sealX + 58, sealY + 145);
-  ctx.lineTo(sealX + 22, sealY + 125);
-  ctx.lineTo(sealX + 4, sealY + 150);
-  ctx.lineTo(sealX + 6, sealY + 60);
-  ctx.closePath();
-  ctx.fill();
-
-  // Outer medal circle
-  ctx.fillStyle = posTheme.primaryColor;
-  ctx.beginPath();
-  ctx.arc(sealX, sealY, 76, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#0C1A2E';
-  ctx.beginPath();
-  ctx.arc(sealX, sealY, 64, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#E6C665';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.fillStyle = '#E6C665';
   ctx.textAlign = 'center';
-  ctx.font = 'bold 16px sans-serif';
-  ctx.fillText(posTheme.badgeTitle, sealX, sealY - 4);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.fillText(cert.grade !== 'None' ? `GRADE ${cert.grade}` : 'HONORS', sealX, sealY + 18);
-  ctx.restore();
-
-  // 6. Union Name & Subtitle
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'bold 24px Georgia, serif';
-  ctx.fillText(unionName.toUpperCase(), width / 2, 250);
-
-  ctx.fillStyle = '#9A7515';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText(subtitle.toUpperCase(), width / 2, 278);
-
-  // 7. Certificate Main Heading
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'bold 54px Georgia, serif';
-  ctx.fillText(title.toUpperCase(), width / 2, 345);
-
-  // Position Dynamic Golden Ribbon Banner
-  const ribbonW = 540;
-  const ribbonH = 44;
-  const ribbonX = width / 2 - ribbonW / 2;
-  const ribbonY = 368;
-  ctx.fillStyle = posTheme.primaryColor;
-  ctx.fillRect(ribbonX, ribbonY, ribbonW, ribbonH);
-  ctx.strokeStyle = '#0C1A2E';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(ribbonX, ribbonY, ribbonW, ribbonH);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText(`${posTheme.badgeTitle}  ·  ${posTheme.ribbonLabel}`, width / 2, ribbonY + 29);
-
-  // 8. Presentation Line
-  ctx.fillStyle = '#475569';
-  ctx.font = 'italic 24px Georgia, serif';
-  ctx.fillText('This official certificate of honor is proudly presented to', width / 2, 460);
-
-  // 9. Student Full Name (Elegant Display Typography)
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'bold italic 58px Georgia, serif';
-  ctx.fillText(cert.studentName, width / 2, 535);
-
-  // Gold underline beneath student name
-  ctx.strokeStyle = '#C59B27';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(width / 2 - 260, 554);
-  ctx.lineTo(width / 2 + 260, 554);
-  ctx.stroke();
-
-  // Student ID & Batch/Class line
-  ctx.fillStyle = '#9A7515';
-  ctx.font = 'bold 19px monospace';
-  ctx.fillText(
-    `STUDENT ID: ${cert.studentId}   ·   CLASS / BATCH: 11TH BATCH OF DHBC`,
+  ctx.fillStyle = '#0B1F3A';
+  drawFittedText(
+    ctx,
+    organizationName.toUpperCase(),
     width / 2,
-    590
+    515,
+    2400,
+    (s) => `700 ${s}px "Cinzel", "Playfair Display", Georgia, serif`,
+    48,
+    30
   );
 
-  // 10. Clean Achievement Description
-  const posText =
-    cert.position !== 'None' ? `achieving ${posTheme.badgeTitle} (${cert.position})` : 'distinguished academic participation';
-  const gradeText =
-    cert.grade !== 'None' ? `with Grade ${cert.grade} Honors` : 'with official merit recognition';
+  // Gold horizontal divider beneath Organization Name
+  const drawOrnamentalDivider = (cy: number, halfSpan: number) => {
+    ctx.strokeStyle = '#C59B27';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(width / 2 - halfSpan, cy);
+    ctx.lineTo(width / 2 - 28, cy);
+    ctx.moveTo(width / 2 + 28, cy);
+    ctx.lineTo(width / 2 + halfSpan, cy);
+    ctx.stroke();
 
-  ctx.fillStyle = '#334155';
-  ctx.font = '25px Georgia, serif';
-  ctx.fillText(
-    `in recognition of ${posText} ${gradeText} and earning ${cert.totalPoints} Official Result Points`,
-    width / 2,
-    648
-  );
-  ctx.fillText('at the official AL-NIBRAS Class Union program:', width / 2, 686);
-
-  // 11. Program Name
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'bold 36px Georgia, serif';
-  ctx.fillText(`"${cert.programName}"`, width / 2, 745);
-
-  // 12. Four Dynamic Achievement Pillars (Position / Grade / Points / Program Date)
-  const boxY = 795;
-  const drawStatBox = (x: number, label: string, val: string, highlight = false) => {
-    ctx.fillStyle = highlight ? posTheme.bgTint : '#F7F4EC';
-    ctx.strokeStyle = highlight ? posTheme.primaryColor : '#C59B27';
-    ctx.lineWidth = highlight ? 3 : 2;
-    ctx.fillRect(x - 165, boxY, 330, 82);
-    ctx.strokeRect(x - 165, boxY, 330, 82);
-    ctx.fillStyle = '#64748B';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText(label.toUpperCase(), x, boxY + 27);
-    ctx.fillStyle = '#0C1A2E';
-    ctx.font = 'bold 22px Georgia, serif';
-    ctx.fillText(val, x, boxY + 60);
+    // Central Gold Diamond
+    ctx.fillStyle = '#D4AF37';
+    ctx.beginPath();
+    ctx.moveTo(width / 2, cy - 12);
+    ctx.lineTo(width / 2 + 12, cy);
+    ctx.lineTo(width / 2, cy + 12);
+    ctx.lineTo(width / 2 - 12, cy);
+    ctx.closePath();
+    ctx.fill();
   };
 
-  drawStatBox(width / 2 - 365, 'Position Conferred', posTheme.badgeTitle, true);
-  drawStatBox(width / 2, 'Official Grade', cert.grade === 'None' ? 'Merit' : `Grade ${cert.grade}`);
-  drawStatBox(
-    width / 2 + 365,
-    'Result Points Awarded',
-    `${cert.totalPoints} Points (${cert.positionPoints}+${cert.gradePoints})`
+  drawOrnamentalDivider(565, 560);
+
+  // 5. Large, Bold, Visually Prominent Certificate Title (#3)
+  ctx.fillStyle = '#0B1F3A';
+  drawFittedText(
+    ctx,
+    certificateTitle.toUpperCase(),
+    width / 2,
+    720,
+    2750,
+    (s) => `800 ${s}px "Cinzel", "Playfair Display", Georgia, serif`,
+    118,
+    74
   );
 
-  // 13. Bottom Section: Certificate Metadata (Left), Official Seal (Center), Authorized Signature (Right) — NO QR CODE
-  const footerY = 1015;
+  // Thin gold underline bar below Certificate Title
+  ctx.fillStyle = '#C59B27';
+  ctx.fillRect(width / 2 - 320, 764, 640, 6);
 
-  // Left: Program Date & Certificate Reference
+  // 6. Participant's Name (#4) — Prominent & Luxurious
+  ctx.fillStyle = '#0B1F3A';
+  drawFittedText(
+    ctx,
+    participantName,
+    width / 2,
+    1020,
+    2650,
+    (s) => `700 ${s}px "Playfair Display", "Cinzel", Georgia, serif`,
+    134,
+    78
+  );
+
+  // Elegant Golden Underline under Participant's Name
+  drawOrnamentalDivider(1078, 820);
+
+  // 7. Program Details Card Region (#5 Program Name, #6 Program Date, #7 Program Venue)
+  const panelX = 480;
+  const panelY = 1175;
+  const panelW = width - 960;
+  const panelH = 490;
+
+  ctx.fillStyle = '#F8FAFC';
+  ctx.fillRect(panelX, panelY, panelW, panelH);
+  ctx.strokeStyle = '#D4AF37';
+  ctx.lineWidth = 3.5;
+  ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+  // Top Navy bar accent inside Program panel
+  ctx.fillStyle = '#0B1F3A';
+  ctx.fillRect(panelX, panelY, panelW, 10);
+
+  // Program Name label & value
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#9A7515';
+  ctx.font = '600 28px "Poppins", "Montserrat", sans-serif';
+  ctx.fillText('PROGRAM NAME', width / 2, panelY + 86);
+
+  ctx.fillStyle = '#0B1F3A';
+  drawFittedText(
+    ctx,
+    programName,
+    width / 2,
+    panelY + 178,
+    panelW - 140,
+    (s) => `700 ${s}px "Playfair Display", "Cinzel", Georgia, serif`,
+    68,
+    40
+  );
+
+  // Soft gold divider separating Program Name from Date & Venue row
+  ctx.strokeStyle = '#E5D399';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(panelX + 120, panelY + 245);
+  ctx.lineTo(panelX + panelW - 120, panelY + 245);
+  ctx.stroke();
+
+  // Vertical separator between Program Date and Program Venue
+  ctx.beginPath();
+  ctx.moveTo(width / 2, panelY + 280);
+  ctx.lineTo(width / 2, panelY + 440);
+  ctx.stroke();
+
+  const leftColX = panelX + panelW * 0.25;
+  const rightColX = panelX + panelW * 0.75;
+
+  ctx.fillStyle = '#9A7515';
+  ctx.font = '600 26px "Poppins", "Montserrat", sans-serif';
+  ctx.fillText('PROGRAM DATE', leftColX, panelY + 332);
+  ctx.fillText('PROGRAM VENUE', rightColX, panelY + 332);
+
+  ctx.fillStyle = '#0B1F3A';
+  drawFittedText(
+    ctx,
+    programDate,
+    leftColX,
+    panelY + 402,
+    panelW * 0.44,
+    (s) => `600 ${s}px "Poppins", "Montserrat", sans-serif`,
+    44,
+    28
+  );
+  drawFittedText(
+    ctx,
+    programVenue,
+    rightColX,
+    panelY + 402,
+    panelW * 0.44,
+    (s) => `600 ${s}px "Poppins", "Montserrat", sans-serif`,
+    44,
+    28
+  );
+
+  // 8. Golden Award Emblem Centered Above Bottom Metadata
+  drawGoldenAwardEmblem(ctx, width / 2, 1955);
+
+  // 9. Bottom Section: Certificate ID/Serial Number (#8 Left) & Date of Issue (#9 Right)
+  const bottomY = 2175;
+  const leftMetaX = 280;
+  const rightMetaX = width - 280;
+
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText(`CERTIFICATE REF: ${cert.certificateNumber}`, 145, footerY);
-  ctx.fillStyle = '#475569';
-  ctx.font = '17px sans-serif';
-  ctx.fillText(`Program Date: ${cert.programDate}`, 145, footerY + 30);
-  ctx.fillText(`Date of Issue: ${cert.publicationDate}`, 145, footerY + 58);
   ctx.fillStyle = '#9A7515';
-  ctx.font = 'bold 15px sans-serif';
-  ctx.fillText('OFFICIAL AL-NIBRAS DIRECTORATE CONFERMENT', 145, footerY + 88);
+  ctx.font = '600 26px "Poppins", "Montserrat", sans-serif';
+  ctx.fillText('CERTIFICATE ID', leftMetaX, bottomY);
+  ctx.fillStyle = '#0B1F3A';
+  ctx.font = '700 38px "Montserrat", "Poppins", sans-serif';
+  ctx.fillText(certificateId, leftMetaX, bottomY + 56);
 
-  // Center: Golden Institutional Crest Medallion (Replaces any QR code)
-  ctx.save();
-  ctx.fillStyle = '#FDFBF7';
-  ctx.strokeStyle = '#C59B27';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(width / 2, footerY + 35, 52, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.strokeStyle = '#0C1A2E';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(width / 2, footerY + 35, 44, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'bold 13px Georgia, serif';
-  ctx.fillText('AL-NIBRAS', width / 2, footerY + 28);
+  ctx.textAlign = 'right';
   ctx.fillStyle = '#9A7515';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('OFFICIAL SEAL', width / 2, footerY + 46);
-  ctx.restore();
+  ctx.font = '600 26px "Poppins", "Montserrat", sans-serif';
+  ctx.fillText('DATE OF ISSUE', rightMetaX, bottomY);
+  ctx.fillStyle = '#0B1F3A';
+  ctx.font = '700 38px "Montserrat", "Poppins", sans-serif';
+  ctx.fillText(dateOfIssue, rightMetaX, bottomY + 56);
 
-  // Right: Authorized Signature
-  const sigX = width - 315;
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'italic 32px Georgia, serif';
-  ctx.fillText(authName, sigX, footerY + 22);
-
-  ctx.strokeStyle = '#0C1A2E';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(sigX - 165, footerY + 36);
-  ctx.lineTo(sigX + 165, footerY + 36);
-  ctx.stroke();
-
-  ctx.fillStyle = '#0C1A2E';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText(authName.toUpperCase(), sigX, footerY + 64);
-  ctx.fillStyle = '#64748B';
-  ctx.font = '15px sans-serif';
-  ctx.fillText(authRole, sigX, footerY + 88);
-
-  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.96);
   const pdfBytes = buildPdfFromJpegDataUrl(jpegDataUrl, width, height);
   const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
 
-  const safeStudent = cert.studentName.replace(/[^a-zA-Z0-9]+/g, '_');
+  const safeStudent = (participantName || 'Participant').replace(/[^a-zA-Z0-9]+/g, '_');
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ALNIBRAS_Certificate_${safeStudent}_${cert.certificateNumber}.pdf`;
+  a.download = `ALNIBRAS_Certificate_${safeStudent}_${certificateId}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
 export interface CertificatePreviewModalProps {
@@ -493,6 +621,7 @@ export interface CertificatePreviewModalProps {
   settings?: CertificateSettings;
   branding?: BrandingConfig;
   logoUrl?: string;
+  fallbackVenue?: string;
   onClose: () => void;
 }
 
@@ -501,19 +630,53 @@ export function CertificatePreviewModal({
   settings,
   branding,
   logoUrl,
+  fallbackVenue,
   onClose,
 }: CertificatePreviewModalProps) {
   const [downloading, setDownloading] = useState(false);
+  const [uploadedLogoUrl, setUploadedLogoUrl] = useState<string>('');
+  const [selectedTitle, setSelectedTitle] = useState<CertificateTitleOption>(
+    'Certificate of Achievement'
+  );
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!certificate) return;
+    setSelectedTitle(resolveCertificateTitle(certificate, settings));
+    setUploadedLogoUrl('');
+  }, [certificate, settings]);
 
   if (!certificate) return null;
 
-  const effectiveLogo = logoUrl || branding?.logoUrl || DEFAULT_OFFICIAL_LOGO_URL;
-  const posTheme = getPositionCertificateTheme(certificate.position, certificate.grade);
+  const effectiveLogo =
+    uploadedLogoUrl || logoUrl || branding?.logoUrl || DEFAULT_OFFICIAL_LOGO_URL;
+  const organizationName = (
+    certificate.unionName ||
+    settings?.unionName ||
+    branding?.unionTitle ||
+    'AL-NIBRAS CLASS UNION'
+  ).trim();
+  const effectiveVenue = (certificate.programVenue || fallbackVenue || '').trim() || '—';
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setUploadedLogoUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await downloadCertificateAsPdf(certificate, settings, effectiveLogo);
+      await downloadCertificateAsPdf(certificate, settings, effectiveLogo, {
+        certificateTitle: selectedTitle,
+        fallbackVenue: effectiveVenue === '—' ? '' : effectiveVenue,
+      });
     } finally {
       setDownloading(false);
     }
@@ -521,50 +684,94 @@ export function CertificatePreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-[85] flex items-center justify-center bg-[#07111F]/80 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto"
+      className="fixed inset-0 z-[85] flex items-center justify-center bg-[#07111F]/85 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto"
       role="dialog"
       aria-modal="true"
+      aria-label="Program Certificate Preview"
     >
-      <div className="bg-white border border-[#E2DDD2] rounded-2xl max-w-5xl w-full overflow-hidden shadow-2xl my-auto">
-        {/* Top Action Bar */}
-        <div className="bg-[#0C1A2E] text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#C59B27]/40">
+      <div className="bg-white border border-[#D4AF37]/40 rounded-2xl max-w-6xl w-full overflow-hidden shadow-2xl my-auto">
+        {/* Top Modal Control Toolbar (Excluded when Printing) */}
+        <div className="certificate-no-print bg-[#0B1F3A] text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#C59B27]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white p-1 border border-[#C59B27] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-white p-1 border border-[#C59B27] flex items-center justify-center shrink-0">
               <img
                 src={effectiveLogo}
-                alt="AL-NIBRAS Official Logo"
+                alt={organizationName}
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
-              <h3 className="font-serif text-lg font-bold tracking-wide text-white">
-                Official Certificate of Achievement ({posTheme.badgeTitle})
+              <h3 className="font-cert-heading text-base sm:text-lg font-bold tracking-wide text-white">
+                {selectedTitle}
               </h3>
-              <p className="text-xs text-slate-300 font-mono">
-                Certificate Ref: {certificate.certificateNumber} · Recipient: {certificate.studentName}
+              <p className="font-cert-body text-xs text-slate-300">
+                A4 Landscape · 300 DPI Print-Ready · {certificate.certificateNumber}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Certificate Title Toggle */}
+            <div className="inline-flex rounded-lg bg-white/10 p-0.5 border border-[#C59B27]/40">
+              {(
+                ['Certificate of Achievement', 'Certificate of Participation'] as CertificateTitleOption[]
+              ).map((option) => {
+                const active = selectedTitle === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setSelectedTitle(option)}
+                    className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
+                      active
+                        ? 'bg-[#C59B27] text-[#0B1F3A]'
+                        : 'text-slate-200 hover:text-white'
+                    }`}
+                  >
+                    {option === 'Certificate of Achievement' ? 'Achievement' : 'Participation'}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Organization Logo Upload Control */}
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleLogoFileUpload}
+              className="hidden"
+              data-testid="certificate-logo-upload-input"
+            />
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5 text-[#E6C665]" />
+              Upload Logo
+            </button>
+
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
             >
-              <Printer className="w-4 h-4" />
-              Print
+              <Printer className="w-3.5 h-3.5" />
+              Print A4
             </button>
+
             <button
               type="button"
               onClick={handleDownload}
               disabled={downloading}
               data-testid="modal-download-certificate-pdf"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C59B27] hover:bg-[#b0891f] text-[#07111F] text-xs font-bold uppercase tracking-wider transition-all shadow-md"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C59B27] hover:bg-[#D4AF37] text-[#0B1F3A] text-xs font-bold uppercase tracking-wider transition-all shadow-md"
             >
               <Download className="w-4 h-4" />
-              {downloading ? 'Generating A4 PDF...' : 'Download Certificate (PDF)'}
+              {downloading ? 'Rendering 300 DPI PDF...' : 'Download 300 DPI PDF'}
             </button>
+
             <button
               type="button"
               onClick={onClose}
@@ -576,211 +783,187 @@ export function CertificatePreviewModal({
           </div>
         </div>
 
-        {/* Redesigned Luxury Certificate Canvas (Navy Blue Corner Waves + Golden Curved Ribbons + Official Logo + No QR Code) */}
-        <div className="p-4 sm:p-8 bg-[#F0ECE1] overflow-x-auto">
+        {/* Print-Ready A4 Landscape Sheet (297 : 210 aspect ratio) */}
+        <div className="p-4 sm:p-7 bg-[#EEF2F6] overflow-x-auto">
           <div
             data-testid="certificate-preview-surface"
-            className="min-w-[820px] bg-[#FDFBF7] border-[8px] border-[#0C1A2E] p-3 shadow-2xl mx-auto relative overflow-hidden"
+            className="certificate-print-sheet relative mx-auto w-full min-w-[780px] max-w-[1040px] aspect-[297/210] bg-white border-y-[8px] border-[#0B1F3A] shadow-[0_24px_60px_-15px_rgba(11,31,58,0.3)] p-4 sm:p-6 overflow-hidden select-none"
           >
-            {/* Decorative Top-Left Navy Wave & Golden Curved Ribbon SVG */}
-            <svg
-              className="absolute top-0 left-0 w-48 h-44 pointer-events-none z-0"
-              viewBox="0 0 320 280"
-              fill="none"
-            >
-              <path d="M0 0H290C205 60 105 145 0 265V0Z" fill="#0C1A2E" />
-              <path
-                d="M308 0C220 70 115 160 0 280"
-                stroke="#C59B27"
-                strokeWidth="10"
+            {/* Subtle Centered Organization Logo Watermark */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.05]">
+              <img
+                src={effectiveLogo}
+                alt=""
+                aria-hidden="true"
+                className="w-[46%] max-w-[420px] object-contain"
               />
-              <path
-                d="M320 0C232 80 125 172 0 292"
-                stroke="#E6C665"
-                strokeWidth="3.5"
-              />
-            </svg>
+            </div>
 
-            {/* Decorative Bottom-Right Navy Wave & Golden Curved Ribbon SVG */}
-            <svg
-              className="absolute bottom-0 right-0 w-48 h-44 pointer-events-none z-0"
-              viewBox="0 0 320 280"
-              fill="none"
-            >
-              <path d="M320 280H30C115 220 215 135 320 15V280Z" fill="#0C1A2E" />
-              <path
-                d="M12 280C100 210 205 120 320 0"
-                stroke="#C59B27"
-                strokeWidth="10"
-              />
-              <path
-                d="M0 280C88 200 195 108 320 -12"
-                stroke="#E6C665"
-                strokeWidth="3.5"
-              />
-            </svg>
-
-            <div className="border-2 border-[#C59B27] p-1.5 relative z-10">
-              <div className="border border-[#C59B27]/70 px-10 py-8 text-center relative">
-                {/* Dynamic Top-Right Position Medal Ribbon */}
-                <div
-                  data-testid="certificate-position-badge"
-                  className="absolute top-6 right-8 flex flex-col items-center"
-                >
-                  <div
-                    className="w-24 h-24 rounded-full border-4 border-[#E6C665] shadow-xl flex flex-col items-center justify-center text-center px-2"
-                    style={{ backgroundColor: '#0C1A2E' }}
-                  >
-                    {certificate.position === '1st Place' ? (
-                      <Trophy className="w-6 h-6 text-[#E6C665] mb-0.5" />
-                    ) : (
-                      <Medal className="w-6 h-6 text-[#E6C665] mb-0.5" />
-                    )}
-                    <span className="text-[11px] font-extrabold tracking-wider text-[#E6C665] leading-tight">
-                      {posTheme.badgeTitle}
-                    </span>
-                    <span className="text-[9px] font-bold text-white uppercase tracking-widest mt-0.5">
-                      {certificate.grade !== 'None' ? `GRADE ${certificate.grade}` : 'HONORS'}
-                    </span>
-                  </div>
-                  <div className="flex gap-1 -mt-2">
-                    <div className="w-3 h-7 bg-[#C59B27] rounded-b-sm transform -rotate-12" />
-                    <div className="w-3 h-7 bg-[#9A7515] rounded-b-sm transform rotate-12" />
-                  </div>
-                </div>
-
-                {/* Official AL-NIBRAS Union Logo */}
-                <div className="mx-auto w-24 h-24 rounded-2xl bg-white border-2 border-[#C59B27] p-2 flex items-center justify-center shadow-md mb-3">
-                  <img
-                    src={effectiveLogo}
-                    alt="Official AL-NIBRAS Logo"
-                    className="w-full h-full object-contain"
+            {/* Outer Double-Line Golden Border */}
+            <div className="relative z-10 h-full w-full border-[3px] border-[#C59B27] p-1.5">
+              <div className="relative h-full w-full border border-[#0B1F3A]/40 p-1">
+                <div className="relative h-full w-full border-2 border-[#D4AF37] px-8 sm:px-14 py-6 sm:py-8 flex flex-col justify-between">
+                  {/* Four Ornamental Corner Brackets (CSS Geometric Filigree) */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-2.5 left-2.5 w-10 h-10 border-t-[3px] border-l-[3px] border-[#0B1F3A]"
                   />
-                </div>
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-4 left-4 w-7 h-7 border-t-2 border-l-2 border-[#C59B27]"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-2.5 right-2.5 w-10 h-10 border-t-[3px] border-r-[3px] border-[#0B1F3A]"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-4 right-4 w-7 h-7 border-t-2 border-r-2 border-[#C59B27]"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-2.5 left-2.5 w-10 h-10 border-b-[3px] border-l-[3px] border-[#0B1F3A]"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-4 left-4 w-7 h-7 border-b-2 border-l-2 border-[#C59B27]"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-2.5 right-2.5 w-10 h-10 border-b-[3px] border-r-[3px] border-[#0B1F3A]"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-4 right-4 w-7 h-7 border-b-2 border-r-2 border-[#C59B27]"
+                  />
 
-                <p className="font-serif text-sm font-bold tracking-[0.25em] text-[#0C1A2E] uppercase">
-                  {settings?.unionName || certificate.unionName || 'AL-NIBRAS CLASS UNION'}
-                </p>
-                <p className="text-[11px] font-bold tracking-[0.2em] text-[#9A7515] uppercase mt-1">
-                  {settings?.subtitle || 'OFFICIAL HONORS & SCHOLASTIC MERIT CONFERMENT'}
-                </p>
-
-                <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0C1A2E] tracking-wide mt-3">
-                  {settings?.title || 'CERTIFICATE OF ACHIEVEMENT'}
-                </h2>
-
-                {/* Dynamic Position Ribbon Banner */}
-                <div className="mt-3 inline-flex items-center gap-2 px-6 py-1.5 rounded-md bg-[#0C1A2E] border-2 border-[#C59B27] text-[#E6C665] text-xs font-extrabold uppercase tracking-[0.18em] shadow-sm">
-                  <Award className="w-4 h-4 text-[#C59B27]" />
-                  <span>
-                    {posTheme.badgeTitle} · {posTheme.ribbonLabel}
-                  </span>
-                </div>
-
-                <p className="font-serif italic text-sm text-[#475569] mt-5">
-                  This official certificate of honor is proudly presented to
-                </p>
-
-                <h1 className="font-serif italic text-3xl sm:text-5xl font-bold text-[#0C1A2E] mt-2">
-                  {certificate.studentName}
-                </h1>
-                <div className="w-64 h-0.5 bg-[#C59B27] mx-auto my-2.5" />
-                <p className="font-mono text-xs font-bold text-[#9A7515]">
-                  STUDENT ID: {certificate.studentId} · CLASS / BATCH: 11TH BATCH OF DHBC
-                </p>
-
-                <p className="font-serif text-sm sm:text-base text-[#334155] max-w-2xl mx-auto mt-4 leading-relaxed">
-                  in recognition of{' '}
-                  <span className="font-bold text-[#0C1A2E]">
-                    {certificate.position !== 'None'
-                      ? `achieving ${posTheme.badgeTitle} (${certificate.position})`
-                      : 'distinguished participation'}
-                  </span>{' '}
-                  with{' '}
-                  <span className="font-bold text-[#0C1A2E]">
-                    {certificate.grade !== 'None'
-                      ? `Grade ${certificate.grade} Honors`
-                      : 'Official Merit Recognition'}
-                  </span>{' '}
-                  and earning{' '}
-                  <span className="font-bold text-[#9A7515]">
-                    {certificate.totalPoints} Official Result Points
-                  </span>{' '}
-                  in the institutional union program:
-                </p>
-
-                <h3 className="font-serif text-2xl font-bold text-[#0C1A2E] mt-2.5">
-                  &ldquo;{certificate.programName}&rdquo;
-                </h3>
-
-                {/* 3 Dynamic Achievement Pillars */}
-                <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto mt-5">
-                  <div className="bg-[#FEF9E7] border-2 border-[#C59B27] rounded-lg py-2.5 px-3 shadow-xs">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#785A0A]">
-                      Position Conferred
+                  {/* TOP: Element #2 (Organization Logo) & Element #1 (Organization Name) */}
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white border border-[#D4AF37]/70 p-1.5 flex items-center justify-center shadow-xs">
+                      <img
+                        src={effectiveLogo}
+                        alt={organizationName}
+                        className="w-full h-full object-contain"
+                      />
                     </div>
-                    <div className="font-serif text-base font-extrabold text-[#0C1A2E] mt-0.5">
-                      {posTheme.badgeTitle}
-                    </div>
-                  </div>
-                  <div className="bg-[#F7F4EC] border border-[#C59B27] rounded-lg py-2.5 px-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
-                      Official Grade
-                    </div>
-                    <div className="font-serif text-base font-bold text-[#0C1A2E] mt-0.5">
-                      {certificate.grade === 'None' ? 'Merit' : `Grade ${certificate.grade}`}
-                    </div>
-                  </div>
-                  <div className="bg-[#F7F4EC] border border-[#C59B27] rounded-lg py-2.5 px-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
-                      Result Points
-                    </div>
-                    <div className="font-serif text-base font-bold text-[#9A7515] mt-0.5">
-                      {certificate.totalPoints} Points ({certificate.positionPoints}+
-                      {certificate.gradePoints})
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Row — NO QR CODE */}
-                <div className="grid grid-cols-3 items-end gap-4 mt-8 pt-5 border-t border-[#E2DDD2] text-left">
-                  <div className="space-y-1 text-xs text-[#475569]">
-                    <div className="font-mono font-bold text-[#0C1A2E]">
-                      REF: {certificate.certificateNumber}
-                    </div>
-                    <div>Program Date: {certificate.programDate}</div>
-                    <div>Date of Issue: {certificate.publicationDate}</div>
-                    <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Official AL-NIBRAS Record
+                    <p
+                      data-testid="cert-organization-name"
+                      className="font-cert-heading text-sm sm:text-base font-bold tracking-[0.26em] text-[#0B1F3A] uppercase mt-2"
+                    >
+                      {organizationName}
+                    </p>
+                    <div className="flex items-center justify-center gap-2.5 mt-2 w-64">
+                      <div className="h-[1.5px] flex-1 bg-gradient-to-r from-transparent to-[#C59B27]" />
+                      <div className="w-2 h-2 rotate-45 bg-[#C59B27]" />
+                      <div className="h-[1.5px] flex-1 bg-gradient-to-l from-transparent to-[#C59B27]" />
                     </div>
                   </div>
 
-                  {/* Center Institutional Seal (Replaces QR Code) */}
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-[#FDFBF7] border-2 border-[#C59B27] flex flex-col items-center justify-center shadow-sm">
-                      <ShieldCheck className="w-6 h-6 text-[#0C1A2E]" />
-                      <span className="text-[8px] font-extrabold uppercase tracking-widest text-[#9A7515] mt-0.5">
-                        OFFICIAL SEAL
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-serif italic text-[#64748B] mt-1">
-                      11th Batch of DHBC
-                    </span>
+                  {/* UPPER-MIDDLE: Element #3 (Certificate Title) */}
+                  <div className="text-center">
+                    <h2
+                      data-testid="cert-title"
+                      className="font-cert-heading text-3xl sm:text-5xl font-extrabold tracking-[0.06em] text-[#0B1F3A] uppercase leading-tight"
+                    >
+                      {selectedTitle}
+                    </h2>
+                    <div className="w-40 h-[3px] bg-[#C59B27] mx-auto mt-2 rounded-full" />
                   </div>
 
-                  {/* Right: Authorized Signature */}
-                  <div className="text-center pr-12">
-                    <div className="font-serif italic text-2xl text-[#0C1A2E] mb-1">
-                      {settings?.authorizedByName || certificate.authorizedByName || 'SUPER ADMIN'}
+                  {/* CENTER: Element #4 (Participant's Name) */}
+                  <div className="text-center px-6">
+                    <h1
+                      data-testid="cert-participant-name"
+                      className="font-cert-display text-3xl sm:text-5xl font-bold text-[#0B1F3A] tracking-tight"
+                    >
+                      {certificate.studentName}
+                    </h1>
+                    <div className="flex items-center justify-center gap-3 mt-2.5 max-w-md mx-auto">
+                      <div className="h-[1.5px] flex-1 bg-gradient-to-r from-transparent via-[#C59B27] to-[#C59B27]" />
+                      <div className="w-2.5 h-2.5 rotate-45 bg-[#D4AF37]" />
+                      <div className="h-[1.5px] flex-1 bg-gradient-to-l from-transparent via-[#C59B27] to-[#C59B27]" />
                     </div>
-                    <div className="border-t-2 border-[#0C1A2E] pt-1.5">
-                      <div className="text-xs font-bold text-[#0C1A2E] uppercase tracking-wider">
-                        {settings?.authorizedByName || certificate.authorizedByName || 'SUPER ADMIN'}
+                  </div>
+
+                  {/* LOWER-MIDDLE: Elements #5 (Program Name), #6 (Program Date), #7 (Program Venue) */}
+                  <div className="max-w-3xl w-full mx-auto bg-[#F8FAFC] border border-[#D4AF37]/80 border-t-[3px] border-t-[#0B1F3A] rounded-lg px-6 py-3.5 text-center shadow-xs">
+                    <div className="font-cert-body text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9A7515]">
+                      Program Name
+                    </div>
+                    <div
+                      data-testid="cert-program-name"
+                      className="font-cert-display text-lg sm:text-2xl font-bold text-[#0B1F3A] mt-0.5"
+                    >
+                      {certificate.programName}
+                    </div>
+
+                    <div className="grid grid-cols-2 divide-x divide-[#D4AF37]/50 mt-3 pt-2.5 border-t border-[#D4AF37]/40">
+                      <div className="px-4 flex flex-col items-center justify-center">
+                        <span className="font-cert-body inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A7515]">
+                          <Calendar className="w-3 h-3 text-[#C59B27]" />
+                          Program Date
+                        </span>
+                        <span
+                          data-testid="cert-program-date"
+                          className="font-cert-body text-xs sm:text-sm font-semibold text-[#0B1F3A] mt-0.5"
+                        >
+                          {certificate.programDate}
+                        </span>
                       </div>
-                      <div className="text-[11px] text-[#64748B]">
-                        {settings?.authorizedByDesignation ||
-                          certificate.authorizedByDesignation ||
-                          'Director General · AL-NIBRAS Class Union'}
+                      <div className="px-4 flex flex-col items-center justify-center">
+                        <span className="font-cert-body inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A7515]">
+                          <MapPin className="w-3 h-3 text-[#C59B27]" />
+                          Program Venue
+                        </span>
+                        <span
+                          data-testid="cert-program-venue"
+                          className="font-cert-body text-xs sm:text-sm font-semibold text-[#0B1F3A] mt-0.5"
+                        >
+                          {effectiveVenue}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* BOTTOM: Element #8 (Certificate ID), Center Golden Award Emblem, Element #9 (Date of Issue) */}
+                  <div className="grid grid-cols-3 items-end gap-4 pt-1">
+                    <div className="text-left">
+                      <div className="font-cert-body text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A7515]">
+                        Certificate ID
+                      </div>
+                      <div
+                        data-testid="cert-serial-number"
+                        className="font-cert-body text-xs sm:text-sm font-bold text-[#0B1F3A] mt-0.5 inline-flex items-center gap-1.5"
+                      >
+                        <FileBadge className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                        <span>{certificate.certificateNumber}</span>
+                      </div>
+                    </div>
+
+                    {/* Sophisticated Golden Award Emblem */}
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="relative flex flex-col items-center">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#F5DF8D] via-[#D4AF37] to-[#9A7515] p-1 shadow-md flex items-center justify-center">
+                          <div className="w-full h-full rounded-full bg-[#0B1F3A] border-2 border-[#E6C665] flex items-center justify-center">
+                            <Award className="w-7 h-7 text-[#E6C665]" />
+                          </div>
+                        </div>
+                        <div className="flex gap-1 -mt-1.5">
+                          <div className="w-2.5 h-4 bg-[#0B1F3A] border-x border-[#C59B27] -rotate-12" />
+                          <div className="w-2.5 h-4 bg-[#0B1F3A] border-x border-[#C59B27] rotate-12" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="font-cert-body text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A7515]">
+                        Date of Issue
+                      </div>
+                      <div
+                        data-testid="cert-date-of-issue"
+                        className="font-cert-body text-xs sm:text-sm font-bold text-[#0B1F3A] mt-0.5"
+                      >
+                        {certificate.publicationDate}
                       </div>
                     </div>
                   </div>
@@ -795,4 +978,3 @@ export function CertificatePreviewModal({
 }
 
 export default CertificatePreviewModal;
-

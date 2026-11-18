@@ -1145,3 +1145,35 @@ export function formatLiveDateTime(
   };
 }
 
+/**
+ * Pure merge helper combining server/prop messages with Supabase Realtime overlay events,
+ * deduplicating by message ID and sorting chronologically.
+ */
+export function mergeChatMessages(
+  propMessages: ChatMessage[],
+  realtimeMessages: ChatMessage[],
+  deletedIds: ReadonlySet<string> = new Set()
+): ChatMessage[] {
+  const map = new Map<string, ChatMessage>();
+  for (const m of propMessages) {
+    if (!deletedIds.has(m.id)) {
+      map.set(m.id, m);
+    }
+  }
+  for (const m of realtimeMessages) {
+    if (deletedIds.has(m.id)) continue;
+    const prev = map.get(m.id);
+    if (!prev) {
+      map.set(m.id, m);
+    } else {
+      map.set(m.id, {
+        ...prev,
+        ...m,
+        read: Boolean(prev.read || m.read),
+        delivered: Boolean(prev.delivered || m.delivered),
+      });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+

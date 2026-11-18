@@ -56,7 +56,7 @@ import PhotoLightboxModal from './PhotoLightboxModal';
 import PortalHeaderSearch from './PortalHeaderSearch';
 import type { PortalTopSearchResult } from '@/lib/portal-search';
 import { StudentFinesView } from './StudentFinesView';
-import { LiveMessagingView } from './LiveMessagingView';
+import { ChatWindow } from './ChatWindow';
 import { ProgramResultsView } from './ProgramResultsView';
 import { AdvancedCalendarView } from './AdvancedCalendarView';
 import { StudentResultsAndPointsView } from './StudentResultsAndPointsView';
@@ -96,6 +96,7 @@ interface StudentPanelProps {
   onMutate: (payload: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
   onLogout: () => Promise<void>;
   onSwitchToPublic: () => void;
+  onRealtimeSync?: () => void;
   showToast: (message: string, type?: 'success' | 'error') => void;
 }
 
@@ -105,6 +106,7 @@ export function StudentPanel({
   onMutate,
   onLogout,
   onSwitchToPublic,
+  onRealtimeSync,
   showToast,
 }: StudentPanelProps) {
   const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
@@ -1577,7 +1579,7 @@ export function StudentPanel({
 
           {/* 16. MESSAGES */}
           {activeTab === 'messages' && (
-            <LiveMessagingView
+            <ChatWindow
               currentUser={currentUser}
               users={state.users}
               chatMessages={state.chatMessages || []}
@@ -1599,6 +1601,7 @@ export function StudentPanel({
                   peerId,
                 });
               }}
+              onRealtimeSync={onRealtimeSync}
               showToast={showToast}
             />
           )}

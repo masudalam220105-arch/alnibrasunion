@@ -386,6 +386,7 @@ export function toSnakeCaseRow(
         category: String(record.category || 'Academic'),
         program_date: String(record.programDate || getIndiaDateISO()),
         publication_date: nullableStr(record.publicationDate),
+        venue: String(record.programVenue || record.venue || ''),
         description: String(record.description || ''),
         winner_summary: String(record.winnerSummary || ''),
         participants: Array.isArray(record.participants) ? record.participants : [],
@@ -475,6 +476,7 @@ export function toSnakeCaseRow(
         program_name: String(record.programName || ''),
         program_category: String(record.programCategory || ''),
         program_date: String(record.programDate || getIndiaDateISO()),
+        program_venue: nullableStr(record.programVenue),
         issue_date: String(record.issueDate || record.publicationDate || getIndiaDateISO()),
         publication_date: nullableStr(record.publicationDate),
         student_uid: String(record.studentUid || ''),
@@ -684,6 +686,7 @@ export function toSnakeCaseRow(
       });
 
     case 'chat_messages':
+    case 'messages':
       return sanitizeForSupabase({
         id: String(record.id || ''),
         conversation_id: String(record.conversationId || ''),
@@ -1133,12 +1136,15 @@ export function rowToChatMessage(r: Record<string, unknown>): ChatMessage {
 }
 
 export function rowToProgramResult(r: Record<string, unknown>): ProgramResult {
+  const venueVal = r.venue ? String(r.venue) : r.program_venue ? String(r.program_venue) : undefined;
   return {
     id: String(r.id || ''),
     programName: String(r.program_name || ''),
     category: String(r.category || ''),
     programDate: String(r.program_date || ''),
     publicationDate: r.publication_date ? String(r.publication_date) : undefined,
+    venue: venueVal,
+    programVenue: venueVal,
     description: String(r.description || ''),
     winnerSummary: String(r.winner_summary || ''),
     participants: Array.isArray(r.participants) ? (r.participants as ProgramResult['participants']) : [],
@@ -1231,6 +1237,7 @@ export function rowToCertificate(r: Record<string, unknown>): CertificateRecord 
     programName: String(r.program_name || ''),
     programCategory: String(r.program_category || ''),
     programDate: String(r.program_date || ''),
+    programVenue: r.program_venue ? String(r.program_venue) : r.venue ? String(r.venue) : undefined,
     publicationDate: String(r.publication_date || r.issue_date || ''),
     studentUid: String(r.student_uid || ''),
     studentId: String(r.student_id || ''),
@@ -1704,6 +1711,7 @@ export async function loadPortalStateFromSupabase(
             pwResetRes,
             customTypesRes,
             appointmentsRes,
+            realtimeMessagesRes,
           ] = await Promise.all([
             supabase.from('users').select('*'),
             supabase.from('student_results').select('*').order('created_at', { ascending: false }),
@@ -1725,6 +1733,7 @@ export async function loadPortalStateFromSupabase(
             supabase.from('password_reset_logs').select('*').order('initiated_at', { ascending: false }),
             supabase.from('custom_types').select('*').order('created_at', { ascending: false }),
             supabase.from('appointments').select('*').order('created_at', { ascending: false }),
+            supabase.from('messages').select('*').order('created_at', { ascending: true }),
           ]);
 
           if (Array.isArray(usersRes.data) && usersRes.data.length > 0) {
@@ -1766,8 +1775,22 @@ export async function loadPortalStateFromSupabase(
           if (Array.isArray(messagesRes.data) && messagesRes.data.length > 0) {
             state.messages = (messagesRes.data as Record<string, unknown>[]).map(rowToDirectMessage);
           }
-          if (Array.isArray(chatRes.data) && chatRes.data.length > 0) {
-            state.chatMessages = (chatRes.data as Record<string, unknown>[]).map(rowToChatMessage);
+          if (
+            (Array.isArray(chatRes.data) && chatRes.data.length > 0) ||
+            (Array.isArray(realtimeMessagesRes.data) && realtimeMessagesRes.data.length > 0)
+          ) {
+            const msgMap = new Map<string, ChatMessage>();
+            for (const r of (chatRes.data as Record<string, unknown>[] | null) || []) {
+              const m = rowToChatMessage(r);
+              if (m.id) msgMap.set(m.id, m);
+            }
+            for (const r of (realtimeMessagesRes.data as Record<string, unknown>[] | null) || []) {
+              const m = rowToChatMessage(r);
+              if (m.id) msgMap.set(m.id, m);
+            }
+            state.chatMessages = Array.from(msgMap.values()).sort((a, b) =>
+              a.createdAt.localeCompare(b.createdAt)
+            );
           }
           if (Array.isArray(feedbackRes.data) && feedbackRes.data.length > 0) {
             state.feedback = (feedbackRes.data as Record<string, unknown>[]).map(rowToFeedback);
@@ -2067,6 +2090,12 @@ export async function commitSyncPlanToSupabase(
     } else {
       warnings.push(`${table}: ${formatSupabaseUiError(error)}`);
     }
+    if (table === 'chat_messages') {
+      await supabase.from('messages').upsert(rows, { onConflict: 'id' }).then(
+        () => undefined,
+        () => undefined
+      );
+    }
   }
 
   const groupedDeletes = new Map<string, string[]>();
@@ -2086,6 +2115,12 @@ export async function commitSyncPlanToSupabase(
       warnings.push(`${table}: ${formatSupabaseUiError(error)}`);
     } else {
       warnings.push(`${table}: ${formatSupabaseUiError(error)}`);
+    }
+    if (table === 'chat_messages') {
+      await supabase.from('messages').delete().in('id', ids).then(
+        () => undefined,
+        () => undefined
+      );
     }
   }
 

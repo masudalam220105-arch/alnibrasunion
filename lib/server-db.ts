@@ -10,6 +10,7 @@ import {
   getInitialSlideshow,
   type StoredCredentialMap,
 } from './seed-data';
+import { emitPortalUpdate, type PortalEventTopic } from './portal-events';
 import type { DatabaseBackupMeta, PortalDatabaseState, UserProfile } from './types';
 
 export type PortalBackendMode = 'local_json' | 'dual_write_Read_local' | 'supabase_authoritative';
@@ -380,7 +381,10 @@ export function loadServerStore(): PersistedServerStore {
   return initial;
 }
 
-export function saveServerStore(store: PersistedServerStore): void {
+export function saveServerStore(
+  store: PersistedServerStore,
+  options?: { topic?: PortalEventTopic; silent?: boolean }
+): void {
   ensureControlStructures(store);
   store.mutationVersion = (store.mutationVersion || 1) + 1;
   store.state.studentPoints = recomputeStudentPointSummaries(
@@ -391,6 +395,10 @@ export function saveServerStore(store: PersistedServerStore): void {
   const activePath = getActiveStorePath();
   global.__alnibrasStoreV2 = store;
   global.__alnibrasStoreCachePath = activePath;
+
+  if (!options?.silent) {
+    emitPortalUpdate(store.mutationVersion, options?.topic || 'portal');
+  }
 
   const serialized = JSON.stringify(store, null, 2);
   const isTestPath = activePath !== PERMANENT_DB_FILE_PATH;

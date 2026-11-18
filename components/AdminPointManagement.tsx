@@ -535,9 +535,17 @@ export function AdminPointManagement({ state }: AdminPointManagementProps) {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    downloadCertificateAsPdf(cert, state.certificateSettings)
-                                  }
+                                  onClick={() => {
+                                    const matchedProg = (state.programResults || []).find(
+                                      (pr) => pr.id === cert.programId
+                                    );
+                                    void downloadCertificateAsPdf(
+                                      cert,
+                                      state.certificateSettings,
+                                      state.branding,
+                                      { fallbackVenue: matchedProg?.programVenue || matchedProg?.venue }
+                                    );
+                                  }}
                                   className="px-2.5 py-1 rounded bg-[#C59B27] text-[#07111F] text-xs font-bold"
                                 >
                                   PDF
@@ -598,6 +606,13 @@ export function AdminPointManagement({ state }: AdminPointManagementProps) {
         certificate={previewCert}
         settings={state.certificateSettings}
         branding={state.branding}
+        fallbackVenue={
+          previewCert
+            ? (state.programResults || []).find((pr) => pr.id === previewCert.programId)
+                ?.programVenue ||
+              (state.programResults || []).find((pr) => pr.id === previewCert.programId)?.venue
+            : undefined
+        }
         onClose={() => setPreviewCert(null)}
       />
     </div>

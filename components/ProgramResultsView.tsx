@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import type {
   CertificateRecord,
-  CertificateSettings,
   ContentStatus,
   CustomTypeRecord,
   PortalDatabaseState,
@@ -29,7 +28,6 @@ import type {
   ProgramResult,
   ResultGrade,
   ResultPosition,
-  StudentResultRecord,
   UserProfile,
 } from '@/lib/types';
 import {
@@ -37,8 +35,6 @@ import {
   filterProgramResults,
   getIndiaDateISO,
 } from '@/lib/portal-logic';
-import DeviceFileUpload from './DeviceFileUpload';
-import CustomTypeSelector from './CustomTypeSelector';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import CertificatePreviewModal, { downloadCertificateAsPdf } from './CertificateModalAndPdf';
 import SelectWithCustom from './SelectWithCustom';
@@ -72,19 +68,11 @@ export function ProgramResultsView({
 
   // Form states
   const [programName, setProgramName] = useState('');
+  const [programVenue, setProgramVenue] = useState('');
   const [description, setDescription] = useState('');
   const [programDate, setProgramDate] = useState(() => getIndiaDateISO());
   const [publicationDate, setPublicationDate] = useState(() => getIndiaDateISO());
-  const [category, setCategory] = useState('Debate');
   const [status, setStatus] = useState<ContentStatus>('published');
-  const [winnerSummary, setWinnerSummary] = useState('');
-  const [documentUrl, setDocumentUrl] = useState('');
-  const [documentName, setDocumentName] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [certificateTitle, setCertificateTitle] = useState('CERTIFICATE OF ACHIEVEMENT');
-  const [certificateSubtitle, setCertificateSubtitle] = useState(
-    'OFFICIAL HONORS & SCHOLASTIC MERIT CONFERMENT'
-  );
   const [participants, setParticipants] = useState<ProgramParticipant[]>([]);
 
   // Searchable student dropdown state
@@ -137,19 +125,11 @@ export function ProgramResultsView({
   const openCreateModal = () => {
     setEditingResult(null);
     setProgramName('');
+    setProgramVenue('');
     setDescription('');
     setProgramDate(getIndiaDateISO());
     setPublicationDate(getIndiaDateISO());
-    setCategory('Debate');
     setStatus('published');
-    setWinnerSummary('');
-    setDocumentUrl('');
-    setDocumentName('');
-    setImageUrl('');
-    setCertificateTitle(state.certificateSettings?.title || 'CERTIFICATE OF ACHIEVEMENT');
-    setCertificateSubtitle(
-      state.certificateSettings?.subtitle || 'OFFICIAL HONORS & SCHOLASTIC MERIT CONFERMENT'
-    );
     setParticipants([]);
     setStudentSearch('');
     setModalOpen(true);
@@ -158,23 +138,11 @@ export function ProgramResultsView({
   const openEditModal = (res: ProgramResult) => {
     setEditingResult(res);
     setProgramName(res.programName);
+    setProgramVenue(res.programVenue || res.venue || '');
     setDescription(res.description);
     setProgramDate(res.programDate);
     setPublicationDate(res.publicationDate || res.programDate);
-    setCategory(res.category);
     setStatus(res.status);
-    setWinnerSummary(res.winnerSummary || '');
-    setDocumentUrl(res.documentUrl || '');
-    setDocumentName(res.documentName || '');
-    setImageUrl(res.imageUrl || '');
-    setCertificateTitle(
-      res.certificateTitle || state.certificateSettings?.title || 'CERTIFICATE OF ACHIEVEMENT'
-    );
-    setCertificateSubtitle(
-      res.certificateSubtitle ||
-        state.certificateSettings?.subtitle ||
-        'OFFICIAL HONORS & SCHOLASTIC MERIT CONFERMENT'
-    );
     setParticipants(
       (res.participants || []).map((p) => {
         const calc = calculateResultPoints(p.position, p.grade);
@@ -268,17 +236,12 @@ export function ProgramResultsView({
         action: 'SAVE_PROGRAM_RESULT',
         id: editingResult?.id,
         programName,
+        programVenue,
         description,
         programDate,
         publicationDate,
-        category,
+        category: editingResult?.category || 'General',
         status,
-        winnerSummary,
-        documentUrl,
-        documentName,
-        imageUrl,
-        certificateTitle,
-        certificateSubtitle,
         participants,
       });
 
@@ -342,7 +305,12 @@ export function ProgramResultsView({
         (p.id && c.resultId === p.id) ||
         (c.programId === prog.id && p.studentUid && c.studentUid === p.studentUid)
     );
-    if (existing) return existing;
+    if (existing) {
+      return {
+        ...existing,
+        programVenue: existing.programVenue || prog.programVenue || prog.venue,
+      };
+    }
 
     const calc = calculateResultPoints(p.position, p.grade);
     return {
@@ -353,6 +321,7 @@ export function ProgramResultsView({
       programName: prog.programName,
       programCategory: prog.category,
       programDate: prog.programDate,
+      programVenue: prog.programVenue || prog.venue,
       publicationDate: prog.publicationDate || prog.programDate,
       studentUid: p.studentUid || '',
       studentId: p.studentId || 'AN-2026',
@@ -660,7 +629,8 @@ export function ProgramResultsView({
                                         downloadCertificateAsPdf(
                                           cert,
                                           state.certificateSettings,
-                                          state.branding
+                                          state.branding,
+                                          { fallbackVenue: res.programVenue || res.venue }
                                         )
                                       }
                                       data-testid={`download-cert-${p.id}`}
@@ -759,26 +729,16 @@ export function ProgramResultsView({
                 </div>
 
                 <div>
-                  <CustomTypeSelector
-                    module="programResults"
-                    label="Program Category *"
-                    value={category}
-                    defaultOptions={DEFAULT_CATEGORIES}
-                    customTypes={state.customTypes || []}
-                    onChange={setCategory}
-                    onAddCustomType={async (name) => {
-                      await onMutate({
-                        action: 'ADD_CUSTOM_TYPE',
-                        module: 'programResults',
-                        name,
-                      });
-                    }}
-                    onDeleteCustomType={async (customTypeId) => {
-                      await onMutate({
-                        action: 'DELETE_CUSTOM_TYPE',
-                        customTypeId,
-                      });
-                    }}
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#334155] mb-1">
+                    Program Venue
+                  </label>
+                  <input
+                    type="text"
+                    value={programVenue}
+                    onChange={(e) => setProgramVenue(e.target.value)}
+                    placeholder="e.g. Al-Nibras Auditorium, Campus Hall"
+                    data-testid="program-venue-input"
+                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-[#E2DDD2] focus:outline-none focus:border-[#0C1A2E]"
                   />
                 </div>
 
@@ -1015,58 +975,6 @@ export function ProgramResultsView({
                 )}
               </div>
 
-              {/* Certificate & File Uploads */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#334155] mb-1">
-                    Certificate Heading Title
-                  </label>
-                  <input
-                    type="text"
-                    value={certificateTitle}
-                    onChange={(e) => setCertificateTitle(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-[#E2DDD2]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#334155] mb-1">
-                    Winners Summary Citation (Optional Auto-Generated)
-                  </label>
-                  <input
-                    type="text"
-                    value={winnerSummary}
-                    onChange={(e) => setWinnerSummary(e.target.value)}
-                    placeholder="Leave blank to auto-generate from student positions"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-[#E2DDD2]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DeviceFileUpload
-                  label="Upload Result Scoresheet (PDF / Image)"
-                  accept="image/*,.pdf,.doc,.docx"
-                  currentUrl={documentUrl}
-                  currentName={documentName}
-                  onSelect={(res) => {
-                    setDocumentUrl(res.dataUrl);
-                    setDocumentName(res.fileName);
-                  }}
-                  onClear={() => {
-                    setDocumentUrl('');
-                    setDocumentName('');
-                  }}
-                />
-
-                <DeviceFileUpload
-                  label="Upload Program Highlight Photo"
-                  accept="image/*"
-                  currentUrl={imageUrl}
-                  onSelect={(res) => setImageUrl(res.dataUrl)}
-                  onClear={() => setImageUrl('')}
-                />
-              </div>
-
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E2DDD2]">
                 <button
                   type="button"
@@ -1098,6 +1006,14 @@ export function ProgramResultsView({
         certificate={previewCertificate}
         settings={state.certificateSettings}
         branding={state.branding}
+        fallbackVenue={
+          previewCertificate
+            ? (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                ?.programVenue ||
+              (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                ?.venue
+            : undefined
+        }
         onClose={() => setPreviewCertificate(null)}
       />
 

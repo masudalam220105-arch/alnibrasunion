@@ -419,6 +419,7 @@ CREATE TABLE IF NOT EXISTS public.certificates (
   program_name TEXT NOT NULL,
   program_category TEXT NOT NULL,
   program_date TEXT NOT NULL,
+  program_venue TEXT,
   issue_date TEXT NOT NULL,
   publication_date TEXT,
   student_uid TEXT NOT NULL REFERENCES public.users(uid) ON DELETE CASCADE,
@@ -693,6 +694,38 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON public.chat_messages(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_sender_id ON public.chat_messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient_id ON public.chat_messages(recipient_id);
+
+-- 24B. REALTIME PERSONAL CHAT MESSAGES -> state.chatMessages (Supabase Realtime `messages` table)
+CREATE TABLE IF NOT EXISTS public.messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  sender_id TEXT NOT NULL,
+  sender_name TEXT NOT NULL,
+  sender_role TEXT NOT NULL,
+  recipient_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  attachment_url TEXT,
+  attachment_name TEXT,
+  attachment_type TEXT,
+  attachments JSONB DEFAULT '[]'::JSONB,
+  reply_to_id TEXT,
+  reply_to_text TEXT,
+  reply_to_sender TEXT,
+  reply_to_sender_name TEXT,
+  forwarded_from TEXT,
+  forwarded_from_name TEXT,
+  delivered BOOLEAN NOT NULL DEFAULT TRUE,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON public.messages(conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON public.messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON public.messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON public.messages(created_at DESC);
+
+ALTER TABLE public.program_results ADD COLUMN IF NOT EXISTS venue TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS program_venue TEXT;
 
 -- 25. STUDENT FEEDBACK RECORDS (Strictly Private per Student) -> state.feedback
 CREATE TABLE IF NOT EXISTS public.feedback_records (
@@ -1130,6 +1163,7 @@ ALTER TABLE public.financial_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financial_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedback_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
@@ -1645,6 +1679,49 @@ WITH CHECK (
 DROP POLICY IF EXISTS "chat_messages_delete_sender_or_admin" ON public.chat_messages;
 CREATE POLICY "chat_messages_delete_sender_or_admin"
 ON public.chat_messages FOR DELETE
+USING (
+  sender_id = public.current_user_uid()
+  OR public.is_admin()
+);
+
+-- -----------------------------------------------------------------------------
+-- 24B. public.messages Policies (Strict 1-to-1 Personal Chat + Realtime)
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "messages_select_participant_or_staff" ON public.messages;
+CREATE POLICY "messages_select_participant_or_staff"
+ON public.messages FOR SELECT
+USING (
+  sender_id = public.current_user_uid()
+  OR recipient_id = public.current_user_uid()
+  OR (recipient_id = 'ALL_STUDENTS' AND public.is_active_user())
+  OR public.is_staff()
+);
+
+DROP POLICY IF EXISTS "messages_insert_active_user" ON public.messages;
+CREATE POLICY "messages_insert_active_user"
+ON public.messages FOR INSERT
+WITH CHECK (
+  public.is_active_user()
+  AND sender_id = public.current_user_uid()
+);
+
+DROP POLICY IF EXISTS "messages_update_participant_or_admin" ON public.messages;
+CREATE POLICY "messages_update_participant_or_admin"
+ON public.messages FOR UPDATE
+USING (
+  sender_id = public.current_user_uid()
+  OR recipient_id = public.current_user_uid()
+  OR public.is_admin()
+)
+WITH CHECK (
+  sender_id = public.current_user_uid()
+  OR recipient_id = public.current_user_uid()
+  OR public.is_admin()
+);
+
+DROP POLICY IF EXISTS "messages_delete_sender_or_admin" ON public.messages;
+CREATE POLICY "messages_delete_sender_or_admin"
+ON public.messages FOR DELETE
 USING (
   sender_id = public.current_user_uid()
   OR public.is_admin()
@@ -2636,6 +2713,48 @@ BEGIN
   RETURN FOUND;
 END;
 $func$;
+
+-- =============================================================================
+-- PART 9: ENABLE SUPABASE REALTIME PUBLICATION FOR LIVE CHAT & PORTAL TABLES
+-- =============================================================================
+DO $enable_realtime$
+DECLARE
+  t TEXT;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    FOREACH t IN ARRAY ARRAY[
+      'messages',
+      'chat_messages',
+      'notices',
+      'announcements',
+      'events',
+      'program_results',
+      'certificates',
+      'committee_members',
+      'gallery_items',
+      'video_items',
+      'appointments',
+      'notifications',
+      'direct_messages',
+      'portal_settings'
+    ]
+    LOOP
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+          AND schemaname = 'public'
+          AND tablename = t
+      ) THEN
+        EXECUTE pg_catalog.format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
+      END IF;
+    END LOOP;
+  END IF;
+EXCEPTION
+  WHEN insufficient_privilege OR undefined_object THEN
+    RAISE NOTICE 'NOTICE: Could not alter supabase_realtime publication automatically; enable Realtime for public.messages in Supabase Dashboard -> Database -> Replication.';
+END;
+$enable_realtime$;
 
 COMMIT;
 

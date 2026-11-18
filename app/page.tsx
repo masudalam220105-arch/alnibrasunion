@@ -23,6 +23,7 @@ import {
   type AppointmentSubmitResult,
 } from '@/lib/supabase-db';
 import {
+  broadcastPortalUpdate,
   subscribeToSupabaseRealtime,
   syncPortalMutationToSupabase,
 } from '@/lib/supabase-sync';
@@ -64,10 +65,18 @@ export default function AlNibrasPortalApp() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const authModeRef = useRef(authMode);
+  const currentUserUidRef = useRef<string | null>(currentUserUid);
   const supabaseUserRef = useRef<SupabaseUser | null>(null);
+  const serverVersionRef = useRef<number>(1);
+  const isRefreshingRef = useRef<boolean>(false);
+
   useEffect(() => {
     authModeRef.current = authMode;
   }, [authMode]);
+
+  useEffect(() => {
+    currentUserUidRef.current = currentUserUid;
+  }, [currentUserUid]);
 
   const showToast = useCallback((text: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
@@ -127,6 +136,72 @@ export default function AlNibrasPortalApp() {
     [showToast]
   );
 
+  const refreshPortalSilently = useCallback(
+    async (forceFullFetch = true) => {
+      if (isRefreshingRef.current) return;
+      isRefreshingRef.current = true;
+      try {
+        if (authModeRef.current === 'supabase' && supabaseUserRef.current) {
+          await hydrateFromSupabase(supabaseUserRef.current, false);
+          return;
+        }
+
+        if (!forceFullFetch) {
+          const verRes = await fetch('/api/portal?versionOnly=1', { cache: 'no-store' });
+          if (verRes.ok) {
+            const verData = (await verRes.json()) as { ok?: boolean; version?: number };
+            if (verData.ok && typeof verData.version === 'number') {
+              if (verData.version === serverVersionRef.current) {
+                return;
+              }
+              serverVersionRef.current = verData.version;
+            }
+          }
+        }
+
+        const actorParam = currentUserUidRef.current
+          ? `?actorUid=${encodeURIComponent(currentUserUidRef.current)}`
+          : '';
+        const res = await fetch(`/api/portal${actorParam}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = (await res.json()) as {
+            ok?: boolean;
+            version?: number;
+            user?: UserProfile | null;
+            state?: PortalDatabaseState;
+          };
+          if (data.ok && data.state) {
+            if (typeof data.version === 'number') {
+              serverVersionRef.current = data.version;
+            }
+            setPortalState(data.state);
+            setPublicTotals({
+              totalStudentsCount: (data.state.users || []).filter(
+                (u) => u.role === 'student' && u.status === 'active'
+              ).length,
+              publicTotalIncome: (data.state.income || []).reduce(
+                (sum, item) => sum + (Number(item.amount) || 0),
+                0
+              ),
+              publicTotalExpenses: (data.state.expenses || []).reduce(
+                (sum, item) => sum + (Number(item.amount) || 0),
+                0
+              ),
+            });
+            if (data.user && authModeRef.current === 'legacy') {
+              setLegacyUser(data.user);
+            }
+          }
+        }
+      } catch {
+        // Silent background sync — keep current UI state intact
+      } finally {
+        isRefreshingRef.current = false;
+      }
+    },
+    [hydrateFromSupabase]
+  );
+
   useEffect(() => {
     void testSupabaseConnection();
 
@@ -134,7 +209,11 @@ export default function AlNibrasPortalApp() {
       const user = session?.user ?? null;
       supabaseUserRef.current = user;
       setSupabaseUser(user);
-      void hydrateFromSupabase(user, Boolean(user));
+      if (user) {
+        void hydrateFromSupabase(user, true);
+      } else {
+        void refreshPortalSilently(true);
+      }
     });
 
     const unsubAuth = onSupabaseAuthStateChange((event, session) => {
@@ -153,16 +232,69 @@ export default function AlNibrasPortalApp() {
     });
 
     const unsubRealtime = subscribeToSupabaseRealtime(() => {
-      if (authModeRef.current !== 'legacy') {
-        void hydrateFromSupabase(supabaseUserRef.current, false);
-      }
+      void refreshPortalSilently(true);
     });
+
+    // Server-Sent Events (SSE) for zero-reload automatic updates across all clients
+    let eventSource: EventSource | null = null;
+    if (typeof window !== 'undefined' && 'EventSource' in window) {
+      eventSource = new EventSource('/api/portal/events');
+      eventSource.onmessage = (evt) => {
+        try {
+          const parsed = JSON.parse(evt.data) as { type?: string; version?: number };
+          if (parsed.type === 'update') {
+            if (
+              typeof parsed.version === 'number' &&
+              parsed.version === serverVersionRef.current
+            ) {
+              return;
+            }
+            void refreshPortalSilently(true);
+          } else if (parsed.type === 'ready' && typeof parsed.version === 'number') {
+            if (serverVersionRef.current !== 1 && parsed.version !== serverVersionRef.current) {
+              void refreshPortalSilently(true);
+            }
+            serverVersionRef.current = parsed.version;
+          }
+        } catch {
+          // Ignore malformed keepalive/event frame
+        }
+      };
+    }
+
+    // Same-browser cross-tab BroadcastChannel listener
+    let tabChannel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      tabChannel = new BroadcastChannel('alnibras_portal_tab_sync');
+      tabChannel.onmessage = () => {
+        void refreshPortalSilently(true);
+      };
+    }
+
+    const handleVisibilityOrFocus = () => {
+      if (!document.hidden) {
+        void refreshPortalSilently(false);
+      }
+    };
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    const versionPollTimer = window.setInterval(() => {
+      if (!document.hidden) {
+        void refreshPortalSilently(false);
+      }
+    }, 12000);
 
     return () => {
       unsubAuth();
       unsubRealtime();
+      eventSource?.close();
+      tabChannel?.close();
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.clearInterval(versionPollTimer);
     };
-  }, [hydrateFromSupabase]);
+  }, [hydrateFromSupabase, refreshPortalSilently]);
 
   const currentUser: UserProfile | null =
     authMode === 'legacy' && legacyUser
@@ -333,6 +465,7 @@ export default function AlNibrasPortalApp() {
       const data = (await res.json()) as {
         ok: boolean;
         error?: string;
+        version?: number;
         state?: PortalDatabaseState;
         syncedToSupabase?: boolean;
         syncWarning?: string;
@@ -341,6 +474,10 @@ export default function AlNibrasPortalApp() {
       if (!data.ok) {
         setCloudSyncStatus('idle');
         return { ok: false, error: data.error || 'Operation failed' };
+      }
+
+      if (typeof data.version === 'number') {
+        serverVersionRef.current = data.version;
       }
 
       if (data.state) {
@@ -392,6 +529,9 @@ export default function AlNibrasPortalApp() {
       } else {
         setCloudSyncStatus('idle');
       }
+
+      const actionStr = String(payload.action || '');
+      void broadcastPortalUpdate(actionStr.includes('CHAT') ? 'chat' : 'portal');
 
       return { ok: true };
     } catch (networkErr) {
@@ -578,6 +718,7 @@ export default function AlNibrasPortalApp() {
                 onMutate={handleMutate}
                 onLogout={handleLogout}
                 onSwitchToPublic={() => setViewMode('public')}
+                onRealtimeSync={() => void refreshPortalSilently(true)}
                 showToast={showToast}
               />
             ) : (
@@ -587,6 +728,7 @@ export default function AlNibrasPortalApp() {
                 onMutate={handleMutate}
                 onLogout={handleLogout}
                 onSwitchToPublic={() => setViewMode('public')}
+                onRealtimeSync={() => void refreshPortalSilently(true)}
                 showToast={showToast}
               />
             )}

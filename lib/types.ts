@@ -292,6 +292,8 @@ export interface ProgramResult {
   description: string;
   programDate: string;
   publicationDate?: string;
+  venue?: string;
+  programVenue?: string;
   category: string;
   status: ContentStatus;
   participants: ProgramParticipant[];
@@ -376,6 +378,7 @@ export interface CertificateRecord {
   programName: string;
   programCategory: string;
   programDate: string;
+  programVenue?: string;
   publicationDate: string;
   studentUid: string;
   studentId: string;
@@ -386,6 +389,7 @@ export interface CertificateRecord {
   positionPoints: number;
   gradePoints: number;
   totalPoints: number;
+  certificateTitle?: string;
   authorizedByName: string;
   authorizedByDesignation: string;
   unionName: string;

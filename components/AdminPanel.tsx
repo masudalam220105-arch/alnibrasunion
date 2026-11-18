@@ -76,7 +76,7 @@ import {
 import { AdminStatsChart } from './AdminStatsChart';
 import { AdminActivityLogsView } from './AdminActivityLogsView';
 import { AdminFineManagement } from './AdminFineManagement';
-import { LiveMessagingView } from './LiveMessagingView';
+import { ChatWindow } from './ChatWindow';
 import { ProgramResultsView } from './ProgramResultsView';
 import { AdminPointManagement } from './AdminPointManagement';
 import { AdvancedCalendarView } from './AdvancedCalendarView';
@@ -160,6 +160,7 @@ interface AdminPanelProps {
   onMutate: (payload: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
   onLogout: () => Promise<void>;
   onSwitchToPublic: () => void;
+  onRealtimeSync?: () => void;
   showToast: (message: string, type?: 'success' | 'error') => void;
 }
 
@@ -185,6 +186,7 @@ export function AdminPanel({
   onMutate,
   onLogout,
   onSwitchToPublic,
+  onRealtimeSync,
   showToast,
 }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
@@ -2553,7 +2555,7 @@ export function AdminPanel({
                       Certificate Management
                     </h1>
                     <p className="text-xs text-slate-300 mt-1">
-                      Navy Blue &amp; Gold Ribbon Design · Dynamic Position Badges (1ST, 2ND, 3RD POSITION) · Zero QR Codes
+                      300 DPI A4 Landscape · Luxurious Navy Blue, Gold &amp; White Design · Print-Ready Institutional Certificates
                     </p>
                   </div>
                 </div>
@@ -2608,9 +2610,17 @@ export function AdminPanel({
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          downloadCertificateAsPdf(cert, state.certificateSettings, state.branding)
-                        }
+                        onClick={() => {
+                          const matchedProg = (state.programResults || []).find(
+                            (pr) => pr.id === cert.programId
+                          );
+                          void downloadCertificateAsPdf(
+                            cert,
+                            state.certificateSettings,
+                            state.branding,
+                            { fallbackVenue: matchedProg?.programVenue || matchedProg?.venue }
+                          );
+                        }}
                         className="flex-1 py-2 px-3 rounded-lg bg-[#0B192C] hover:bg-[#162944] text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <FileBadge className="w-3.5 h-3.5 text-[#C5A059]" />
@@ -3007,7 +3017,7 @@ export function AdminPanel({
 
           {/* CHAT */}
           {activeTab === 'liveMessages' && (
-            <LiveMessagingView
+            <ChatWindow
               currentUser={currentUser}
               users={state.users}
               chatMessages={state.chatMessages || []}
@@ -3029,6 +3039,7 @@ export function AdminPanel({
                   peerId,
                 });
               }}
+              onRealtimeSync={onRealtimeSync}
               showToast={showToast}
             />
           )}
@@ -3101,6 +3112,14 @@ export function AdminPanel({
         certificate={previewCertificate}
         settings={state.certificateSettings}
         branding={state.branding}
+        fallbackVenue={
+          previewCertificate
+            ? (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                ?.programVenue ||
+              (state.programResults || []).find((pr) => pr.id === previewCertificate.programId)
+                ?.venue
+            : undefined
+        }
         onClose={() => setPreviewCertificate(null)}
       />
 

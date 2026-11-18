@@ -272,6 +272,7 @@ export async function ensureServerHydratedFromSupabase(
         appointmentsRes,
         credsRes,
         refreshedSettingsRes,
+        realtimeMessagesRes,
       ] = await Promise.all([
         admin.from('users').select('*'),
         admin.from('announcements').select('*').order('created_at', { ascending: false }),
@@ -304,6 +305,7 @@ export async function ensureServerHydratedFromSupabase(
         settingsRes.data
           ? Promise.resolve(settingsRes)
           : admin.from('portal_settings').select('*').eq('id', 'singleton').maybeSingle(),
+        admin.from('messages').select('*').order('created_at', { ascending: true }),
       ]);
 
       const activeSettingsRow = (refreshedSettingsRes.data || settingsRes.data) as
@@ -440,9 +442,25 @@ export async function ensureServerHydratedFromSupabase(
           rowToDirectMessage
         );
       }
-      if (!chatRes.error && Array.isArray(chatRes.data)) {
-        store.state.chatMessages = (chatRes.data as Record<string, unknown>[]).map(
-          rowToChatMessage
+      if (
+        (!chatRes.error && Array.isArray(chatRes.data)) ||
+        (!realtimeMessagesRes.error && Array.isArray(realtimeMessagesRes.data))
+      ) {
+        const msgMap = new Map<string, PortalDatabaseState['chatMessages'][number]>();
+        if (!chatRes.error && Array.isArray(chatRes.data)) {
+          for (const r of chatRes.data as Record<string, unknown>[]) {
+            const m = rowToChatMessage(r);
+            if (m.id) msgMap.set(m.id, m);
+          }
+        }
+        if (!realtimeMessagesRes.error && Array.isArray(realtimeMessagesRes.data)) {
+          for (const r of realtimeMessagesRes.data as Record<string, unknown>[]) {
+            const m = rowToChatMessage(r);
+            if (m.id) msgMap.set(m.id, m);
+          }
+        }
+        store.state.chatMessages = Array.from(msgMap.values()).sort((a, b) =>
+          a.createdAt.localeCompare(b.createdAt)
         );
       }
       if (!feedbackRes.error && Array.isArray(feedbackRes.data)) {
@@ -612,6 +630,12 @@ export async function syncStoreDeltaToSupabaseServer(
     } else {
       warnings.push(`${table}: ${error.message}`);
     }
+    if (table === 'chat_messages') {
+      await admin.from('messages').delete().in('id', ids).then(
+        () => undefined,
+        () => undefined
+      );
+    }
   }
 
   // 2. Upsert parents before children (forward order of PORTAL_TABLE_MAPPINGS)
@@ -635,6 +659,12 @@ export async function syncStoreDeltaToSupabaseServer(
       warnings.push(`${table}: ${error.message}`);
     } else {
       warnings.push(`${table}: ${error.message}`);
+    }
+    if (table === 'chat_messages') {
+      await admin.from('messages').upsert(rows, { onConflict: 'id' }).then(
+        () => undefined,
+        () => undefined
+      );
     }
   }
 

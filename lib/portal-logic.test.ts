@@ -678,8 +678,9 @@ test('Supabase client and lib/supabase-schema.sql match all 39 tables (31 domain
   assert.ok(supabase);
   assert.equal(SUPABASE_PROJECT_ID, 'ehxpegiusizkbmzdtcir');
   assert.equal(SUPABASE_URL, 'https://ehxpegiusizkbmzdtcir.supabase.co');
-  assert.equal(SUPABASE_TABLES.length, 31);
+  assert.equal(SUPABASE_TABLES.length, 32);
   assert.equal(SUPABASE_TABLES.includes('appointments'), true);
+  assert.equal(SUPABASE_TABLES.includes('messages'), true);
   assert.equal(SUPABASE_REQUIRED_BUCKETS.length, 8);
   assert.equal(SUPABASE_SERVER_INFRA_BUCKETS.length, 2);
   assert.equal(SUPABASE_ALL_BUCKETS.length, 10);
@@ -714,14 +715,14 @@ test('Supabase client and lib/supabase-schema.sql match all 39 tables (31 domain
     'portal_state_watermark',
     'portal_server_store',
   ];
-  const expectedAll39Tables = [...SUPABASE_TABLES, ...expectedControlTables];
+  const expectedAll40Tables = [...SUPABASE_TABLES, ...expectedControlTables];
 
-  // 1. Verify exact 39 tables (31 domain + 8 control)
+  // 1. Verify exact 40 tables (32 domain incl. messages & appointments + 8 control)
   const createdTables = [...sql.matchAll(/CREATE TABLE IF NOT EXISTS public\.([a-z0-9_]+)/g)].map(
     (m) => m[1]
   );
-  assert.equal(createdTables.length, 39);
-  assert.deepEqual(new Set(createdTables), new Set(expectedAll39Tables));
+  assert.equal(createdTables.length, 40);
+  assert.deepEqual(new Set(createdTables), new Set(expectedAll40Tables));
 
   // 2. Verify SUPER_ADMIN role in users constraint
   assert.match(sql, /'super_admin'/);
@@ -732,14 +733,14 @@ test('Supabase client and lib/supabase-schema.sql match all 39 tables (31 domain
   assert.equal(inconsistentFks.length, 0);
   assert.equal(sql.toLowerCase().includes('pg_catalog.coalesce'), false);
 
-  // 4. Verify RLS enabled on all 39 tables and every table has policies
+  // 4. Verify RLS enabled on all 40 tables and every table has policies
   const rlsEnabledTables = [
     ...sql.matchAll(/ALTER TABLE public\.([a-z0-9_]+) ENABLE ROW LEVEL SECURITY;/g),
   ].map((m) => m[1]);
-  assert.equal(rlsEnabledTables.length, 39);
-  assert.deepEqual(new Set(rlsEnabledTables), new Set(expectedAll39Tables));
+  assert.equal(rlsEnabledTables.length, 40);
+  assert.deepEqual(new Set(rlsEnabledTables), new Set(expectedAll40Tables));
 
-  for (const tbl of expectedAll39Tables) {
+  for (const tbl of expectedAll40Tables) {
     const policyRegex = new RegExp(`ON public\\.${tbl}\\s+FOR\\s+`, 'i');
     assert.match(sql, policyRegex, `Missing RLS policy for table public.${tbl}`);
   }
@@ -2855,6 +2856,202 @@ test('All-Account Personal Chat & Committee Photo/Delete Flow: 1-to-1 chat priva
       delComJson.state.committeeMembers.some((m) => m.id === addedMember.id),
       false
     );
+  } finally {
+    if (prevTestStore === undefined) {
+      delete process.env.ALNIBRAS_TEST_STORE_PATH;
+    } else {
+      process.env.ALNIBRAS_TEST_STORE_PATH = prevTestStore;
+    }
+    const { resetInMemoryServerStoreCache } = await import('./server-db');
+    resetInMemoryServerStoreCache();
+    if (fs.existsSync(tempStorePath)) fs.unlinkSync(tempStorePath);
+  }
+});
+
+test('Feature Regression Suite: SAVE_PROGRAM_RESULT persists programVenue without removed fields, mergeChatMessages deduplicates Realtime overlays, and versionOnly + SSE bus push live updates', async () => {
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const { NextRequest } = await import('next/server');
+  const { mergeChatMessages } = await import('./portal-logic');
+  const { emitPortalUpdate, subscribePortalUpdates } = await import('./portal-events');
+
+  // 1. Verify mergeChatMessages pure helper
+  const merged = mergeChatMessages(
+    [
+      {
+        id: 'm1',
+        conversationId: 'a__b',
+        senderId: 'a',
+        senderName: 'User A',
+        senderRole: 'admin',
+        recipientId: 'b',
+        text: 'Hello first',
+        read: false,
+        delivered: true,
+        createdAt: '2026-11-17T10:00:00Z',
+      },
+      {
+        id: 'm_del',
+        conversationId: 'a__b',
+        senderId: 'a',
+        senderName: 'User A',
+        senderRole: 'admin',
+        recipientId: 'b',
+        text: 'To be deleted',
+        read: false,
+        delivered: true,
+        createdAt: '2026-11-17T10:00:30Z',
+      },
+    ],
+    [
+      {
+        id: 'm1',
+        conversationId: 'a__b',
+        senderId: 'a',
+        senderName: 'User A',
+        senderRole: 'admin',
+        recipientId: 'b',
+        text: 'Hello first',
+        read: true,
+        delivered: true,
+        createdAt: '2026-11-17T10:00:00Z',
+      },
+      {
+        id: 'm2',
+        conversationId: 'a__b',
+        senderId: 'b',
+        senderName: 'User B',
+        senderRole: 'student',
+        recipientId: 'a',
+        text: 'Realtime reply',
+        read: false,
+        delivered: true,
+        createdAt: '2026-11-17T10:01:00Z',
+      },
+    ],
+    new Set(['m_del'])
+  );
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0].id, 'm1');
+  assert.equal(merged[0].read, true);
+  assert.equal(merged[1].id, 'm2');
+
+  // 2. Verify SSE event bus notifies listeners without full reload
+  const receivedEvents: Array<{ version: number; topic: string }> = [];
+  const unsub = subscribePortalUpdates((evt) => {
+    receivedEvents.push({ version: evt.version, topic: evt.topic });
+  });
+  emitPortalUpdate(999, 'chat');
+  unsub();
+  assert.equal(receivedEvents.some((e) => e.version === 999 && e.topic === 'chat'), true);
+
+  // 3. Isolated server API test for SAVE_PROGRAM_RESULT + versionOnly=1
+  const prevTestStore = process.env.ALNIBRAS_TEST_STORE_PATH;
+  const tempStorePath = path.join(os.tmpdir(), `alnibras_test_venue_${Date.now()}.json`);
+  process.env.ALNIBRAS_TEST_STORE_PATH = tempStorePath;
+
+  try {
+    const { loadServerStore, resetInMemoryServerStoreCache } = await import('./server-db');
+    resetInMemoryServerStoreCache();
+    loadServerStore();
+    const { GET, POST } = await import('../app/api/portal/route');
+
+    const v1Res = await GET(new NextRequest('http://localhost:3000/api/portal?versionOnly=1'));
+    assert.equal(v1Res.status, 200);
+    const v1Json = (await v1Res.json()) as { ok: boolean; version: number };
+    assert.equal(v1Json.ok, true);
+    assert.equal(typeof v1Json.version, 'number');
+
+    // Create a student first
+    const stuRes = await POST(
+      new NextRequest('http://localhost:3000/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE_STUDENT',
+          actorUid: 'admin_super',
+          fullName: 'Zaid Ibn Thabit',
+          username: 'zaid.thabit',
+          studentId: 'AN-2026-888',
+          rollNumber: '88',
+          contactPhone: '+91-9876543210',
+          department: '11th Batch of DHBC',
+          password: 'Password@123',
+        }),
+      })
+    );
+    assert.equal(stuRes.status, 200);
+    const stuJson = (await stuRes.json()) as {
+      state: { users: Array<{ uid: string; username: string }> };
+    };
+    const stu = stuJson.state.users.find((u) => u.username === 'zaid.thabit');
+    assert.ok(stu);
+
+    // Save Program Result WITHOUT removed fields (no category/certificateTitle/winnerSummary/documentUrl/imageUrl) & WITH programVenue
+    const progRes = await POST(
+      new NextRequest('http://localhost:3000/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SAVE_PROGRAM_RESULT',
+          actorUid: 'admin_super',
+          programName: 'Annual Arabic Calligraphy Exhibition',
+          programVenue: 'Darul Huda Main Auditorium',
+          programDate: '2026-11-25',
+          publicationDate: '2026-11-26',
+          status: 'published',
+          description: 'Inter-batch calligraphy competition.',
+          participants: [
+            {
+              studentUid: stu.uid,
+              studentId: 'AN-2026-888',
+              name: 'Zaid Ibn Thabit',
+              position: '1st Place',
+              grade: 'A',
+            },
+          ],
+        }),
+      })
+    );
+    assert.equal(progRes.status, 200);
+    const progJson = (await progRes.json()) as {
+      version: number;
+      state: {
+        programResults: Array<{ programName: string; programVenue?: string; venue?: string; category: string }>;
+        certificates: Array<{
+          unionName: string;
+          studentName: string;
+          programName: string;
+          programDate: string;
+          programVenue?: string;
+          certificateNumber: string;
+          publicationDate: string;
+        }>;
+      };
+    };
+
+    assert.ok(progJson.version > v1Json.version);
+    const savedProg = progJson.state.programResults.find(
+      (p) => p.programName === 'Annual Arabic Calligraphy Exhibition'
+    );
+    assert.ok(savedProg);
+    assert.equal(savedProg.programVenue, 'Darul Huda Main Auditorium');
+    assert.equal(savedProg.venue, 'Darul Huda Main Auditorium');
+    assert.equal(savedProg.category, 'General');
+
+    const savedCert = progJson.state.certificates.find(
+      (c) => c.programName === 'Annual Arabic Calligraphy Exhibition'
+    );
+    assert.ok(savedCert);
+    // Verify all required 9-element certificate fields are present cleanly
+    assert.ok(savedCert.unionName);
+    assert.equal(savedCert.studentName, 'Zaid Ibn Thabit');
+    assert.equal(savedCert.programName, 'Annual Arabic Calligraphy Exhibition');
+    assert.equal(savedCert.programDate, '2026-11-25');
+    assert.equal(savedCert.programVenue, 'Darul Huda Main Auditorium');
+    assert.ok(savedCert.certificateNumber);
+    assert.equal(savedCert.publicationDate, '2026-11-26');
   } finally {
     if (prevTestStore === undefined) {
       delete process.env.ALNIBRAS_TEST_STORE_PATH;
