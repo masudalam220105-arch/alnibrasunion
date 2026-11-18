@@ -787,10 +787,7 @@ export function scopeStateForActor(
         (m) => m.senderId === actor.uid || m.recipientId === actor.uid
       ),
       chatMessages: (state.chatMessages || []).filter(
-        (m) =>
-          m.conversationId === actor.uid ||
-          m.senderId === actor.uid ||
-          m.recipientId === actor.uid
+        (m) => m.senderId === actor.uid || m.recipientId === actor.uid
       ),
       notifications: (state.notifications || []).filter(
         (n) =>
@@ -832,10 +829,7 @@ export function scopeStateForActor(
         (m) => m.senderId === actor.uid || m.recipientId === actor.uid
       ),
       chatMessages: (state.chatMessages || []).filter(
-        (m) =>
-          m.conversationId === actor.uid ||
-          m.senderId === actor.uid ||
-          m.recipientId === actor.uid
+        (m) => m.senderId === actor.uid || m.recipientId === actor.uid
       ),
       notifications: (state.notifications || []).filter(
         (n) =>

@@ -227,7 +227,7 @@ export function AdminPanel({
     classInfo: '11th Batch of DHBC',
     contactEmail: '',
     contactPhone: '',
-    avatarUrl: '/images/avatar_admin_portrait.jpg',
+    avatarUrl: '',
     status: 'active' as AccountStatus,
     password: '',
     address: { ...EMPTY_ADDRESS },
@@ -376,6 +376,7 @@ export function AdminPanel({
     const res = await onMutate({
       action: 'CREATE_STUDENT',
       ...newStudentForm,
+      avatarUrl: newStudentForm.avatarUrl || '/images/avatar_admin_portrait.jpg',
     });
     if (res.ok) {
       showToast(`Student account created for ${newStudentForm.fullName}`, 'success');
@@ -388,7 +389,7 @@ export function AdminPanel({
         classInfo: '11th Batch of DHBC',
         contactEmail: '',
         contactPhone: '',
-        avatarUrl: '/images/avatar_admin_portrait.jpg',
+        avatarUrl: '',
         status: 'active',
         password: '',
         address: { ...EMPTY_ADDRESS },
@@ -2904,6 +2905,7 @@ export function AdminPanel({
           {activeTab === 'committee' && (
             <AdminCommitteeManager
               members={state.committeeMembers || []}
+              users={state.users || []}
               customTypes={state.customTypes || []}
               onMutate={onMutate}
               showToast={showToast}
@@ -3409,7 +3411,7 @@ export function AdminPanel({
                   onClear={() =>
                     setNewStudentForm((prev) => ({
                       ...prev,
-                      avatarUrl: '/images/avatar_admin_portrait.jpg',
+                      avatarUrl: '',
                     }))
                   }
                 />

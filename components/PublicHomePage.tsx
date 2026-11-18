@@ -46,6 +46,7 @@ import { LiveDateTimeClock } from './LiveDateTimeClock';
 import { OfficialLogo } from './OfficialBrandingView';
 import { FloatingThemeToggle } from './ThemeToggle';
 import PhotoLightboxModal from './PhotoLightboxModal';
+import { SafeImage } from './SafeImage';
 import { filterVisibleContent, getIndiaDateISO } from '@/lib/portal-logic';
 import { SelectWithCustom } from './SelectWithCustom';
 import {
@@ -1244,7 +1245,7 @@ export function PublicHomePage({
                           className="group p-3.5 rounded-xl bg-[#F8FAF7] dark:bg-[#071713] border border-[#E5EAE6] dark:border-[#1B3B31] hover:border-[#064E3B]/45 dark:hover:border-[#D4AF37]/50 flex items-center gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <img
+                            <SafeImage
                               src={m.avatarUrl || '/images/avatar_admin_portrait.jpg'}
                               alt={m.fullName}
                               className="w-11 h-11 rounded-full object-cover border border-[#D4AF37]/40 group-hover:scale-105 transition-transform shrink-0"

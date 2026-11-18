@@ -1773,22 +1773,32 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
     return NextResponse.json({ ok: true, state });
   }
 
-  // 15. CHAT MESSAGES (Telegram-Style Chat — Enforces student/teacher -> admin_super recipient restriction)
+  // 15. CHAT MESSAGES (Telegram-Style Personal 1-to-1 Chat across all active accounts)
   if (action === 'SEND_CHAT_MESSAGE') {
-    const requestedRecipientId = String(
-      body.recipientId || (actor.role === 'admin' ? '' : 'admin_super')
-    );
-    if (actor.role !== 'admin' && requestedRecipientId !== 'admin_super') {
+    const requestedRecipientId = String(body.recipientId || '').trim();
+    if (!requestedRecipientId) {
       return NextResponse.json(
-        {
-          ok: false,
-          error:
-            'Forbidden: Members can only send live chat messages to Union Administration (admin_super).',
-        },
-        { status: 403 }
+        { ok: false, error: 'Recipient account is required for personal chat.' },
+        { status: 400 }
       );
     }
-    const recipientId = actor.role === 'admin' ? requestedRecipientId : 'admin_super';
+    if (requestedRecipientId === actor.uid) {
+      return NextResponse.json(
+        { ok: false, error: 'Cannot send a personal chat message to your own account.' },
+        { status: 400 }
+      );
+    }
+    const recipientUser = state.users.find(
+      (u) => u.uid === requestedRecipientId && u.status === 'active'
+    );
+    if (!recipientUser) {
+      return NextResponse.json(
+        { ok: false, error: 'Recipient account not found or currently inactive.' },
+        { status: 404 }
+      );
+    }
+
+    const recipientId = recipientUser.uid;
     const text = sanitizeText(String(body.text || ''), 2000);
     const attachmentUrl = sanitizeMediaUrl(body.attachmentUrl, '');
     const attachmentName = sanitizeText(String(body.attachmentName || ''), 150);
@@ -1802,7 +1812,7 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
       return NextResponse.json({ ok: false, error: 'Cannot send empty message.' }, { status: 400 });
     }
 
-    const conversationId = actor.role === 'admin' ? recipientId : actor.uid;
+    const conversationId = [actor.uid, recipientId].sort().join('__');
 
     if (!state.chatMessages) state.chatMessages = [];
 
@@ -1848,7 +1858,7 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
         actorId: actor.uid,
         actorName: actor.fullName,
         actionType: 'LIVE_MESSAGE_SENT',
-        details: `Sent live message to ${recipientId}`,
+        details: `Sent live message to ${recipientUser.fullName} (${recipientId})`,
         targetId: conversationId,
         createdAt: now,
       })
@@ -1859,14 +1869,25 @@ async function handlePortalPost(req: NextRequest, store: PersistedServerStore) {
   }
 
   if (action === 'MARK_CHAT_READ') {
-    const conversationId = String(body.conversationId || '');
-    if (state.chatMessages) {
+    const peerId = String(body.peerId || body.conversationId || '').trim();
+    const pairConversationId = peerId ? [actor.uid, peerId].sort().join('__') : '';
+    let changed = false;
+    if (state.chatMessages && peerId) {
       for (const m of state.chatMessages) {
-        if (m.conversationId === conversationId && m.recipientId === actor.uid) {
+        if (
+          !m.read &&
+          m.recipientId === actor.uid &&
+          (m.senderId === peerId ||
+            m.conversationId === peerId ||
+            m.conversationId === pairConversationId)
+        ) {
           m.read = true;
+          changed = true;
         }
       }
-      saveServerStore(store);
+      if (changed) {
+        saveServerStore(store);
+      }
     }
     return NextResponse.json({ ok: true, state: scopeStateForActor(state, actor) });
   }

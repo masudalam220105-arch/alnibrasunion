@@ -1158,19 +1158,26 @@ test('Stage 2 Security Suite #3: Isolated API verification of 5 authorization bu
   const privateTwoNotif = store.state.notifications.find((n) => n.id === 'notif_private_two')!;
   assert.equal(privateTwoNotif.readByUids?.includes(studentOne.uid), false);
 
-  // Bug #5 Fix: Student attempting SEND_CHAT_MESSAGE to another student is rejected with 403
-  const peerChatSpoofReq = new NextRequest('http://localhost:3000/api/portal', {
+  // Bug #5 Fix: Students CAN send 1-to-1 personal chat to another active student, while non-existent/self chats fail and messages remain private
+  const peerChatReq = new NextRequest('http://localhost:3000/api/portal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'SEND_CHAT_MESSAGE',
       actorUid: studentOne.uid,
       recipientId: studentTwo.uid,
-      text: 'Direct peer message attempt',
+      text: 'Direct peer personal message',
     }),
   });
-  const peerChatSpoofRes = await POST(peerChatSpoofReq);
-  assert.equal(peerChatSpoofRes.status, 403);
+  const peerChatRes = await POST(peerChatReq);
+  assert.equal(peerChatRes.status, 200);
+  const peerChatBody = (await peerChatRes.json()) as {
+    ok: boolean;
+    message?: { senderId: string; recipientId: string; conversationId: string };
+  };
+  assert.equal(peerChatBody.ok, true);
+  assert.equal(peerChatBody.message?.senderId, studentOne.uid);
+  assert.equal(peerChatBody.message?.recipientId, studentTwo.uid);
 
   // Clean up temp store and verify permanent store SHA-256 is 100% untouched
   if (fs.existsSync(tempStorePath)) {
@@ -2693,6 +2700,173 @@ test('Supabase RLS Diagnostic Utility: Validates lib/supabase-schema.sql policie
     'VULNERABLE_UNRESTRICTED'
   );
 });
+
+test('All-Account Personal Chat & Committee Photo/Delete Flow: 1-to-1 chat privacy, MARK_CHAT_READ peerId, and committee student photo + delete', async () => {
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const { NextRequest } = await import('next/server');
+
+  const tempStorePath = path.join(
+    os.tmpdir(),
+    `alnibras_chat_committee_${Date.now()}_${Math.random().toString(36).slice(2)}.json`
+  );
+  const prevTestStore = process.env.ALNIBRAS_TEST_STORE_PATH;
+  process.env.ALNIBRAS_TEST_STORE_PATH = tempStorePath;
+
+  try {
+    const {
+      loadServerStore,
+      resetInMemoryServerStoreCache,
+      scopeStateForActor,
+    } = await import('./server-db');
+    const { POST } = await import('../app/api/portal/route');
+
+    resetInMemoryServerStoreCache();
+    loadServerStore();
+
+    // 1. Admin creates 3 active student accounts, with uploaded portrait data URL on student A
+    const studentAPhoto = `data:image/png;base64,${'A'.repeat(240)}`;
+    const makeStu = async (username: string, fullName: string, id: string, roll: string, avatarUrl = '') => {
+      const res = await POST(
+        new NextRequest('http://localhost:3000/api/portal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'CREATE_STUDENT',
+            actorUid: 'admin_super',
+            fullName,
+            username,
+            studentId: id,
+            rollNumber: roll,
+            contactPhone: `+91-9876500${roll}`,
+            password: 'UserPass#2026',
+            avatarUrl,
+          }),
+        })
+      );
+      assert.equal(res.status, 200);
+      const json = (await res.json()) as { state: { users: Array<{ uid: string; username: string; avatarUrl: string; role: string }> } };
+      return json.state.users.find((u) => u.username === username)!;
+    };
+
+    const stuA = await makeStu('chat.stu.a', 'Student Alpha', 'AN-C1', '101', studentAPhoto);
+    const stuB = await makeStu('chat.stu.b', 'Student Beta', 'AN-C2', '102');
+    const stuC = await makeStu('chat.stu.c', 'Student Gamma', 'AN-C3', '103');
+
+    assert.equal(stuA.avatarUrl, studentAPhoto);
+
+    // 2. Student A sends a personal message to Student B
+    const sendRes = await POST(
+      new NextRequest('http://localhost:3000/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SEND_CHAT_MESSAGE',
+          actorUid: stuA.uid,
+          recipientId: stuB.uid,
+          text: 'Assalamu Alaikum Beta',
+        }),
+      })
+    );
+    assert.equal(sendRes.status, 200);
+    const sendJson = (await sendRes.json()) as {
+      ok: boolean;
+      message: { id: string; conversationId: string; read: boolean };
+    };
+    assert.equal(sendJson.ok, true);
+    assert.equal(sendJson.message.read, false);
+
+    // 3. Scope check: Student C sees all active users in state.users (including Admin, A, B),
+    // but CANNOT see the private message between Student A and Student B
+    const latestState = loadServerStore().state;
+    const stuCUser = latestState.users.find((u) => u.uid === stuC.uid)!;
+    const stuCState = scopeStateForActor(latestState, stuCUser);
+    assert.ok(stuCState.users.some((u) => u.uid === 'admin_super'));
+    assert.ok(stuCState.users.some((u) => u.uid === stuA.uid));
+    assert.ok(stuCState.users.some((u) => u.uid === stuB.uid));
+    assert.equal(
+      stuCState.chatMessages.some((m) => m.id === sendJson.message.id),
+      false
+    );
+
+    // 4. Student B marks chat with peerId = stuA.uid as read
+    const markRes = await POST(
+      new NextRequest('http://localhost:3000/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'MARK_CHAT_READ',
+          actorUid: stuB.uid,
+          peerId: stuA.uid,
+        }),
+      })
+    );
+    assert.equal(markRes.status, 200);
+    const markJson = (await markRes.json()) as {
+      state: { chatMessages: Array<{ id: string; read: boolean }> };
+    };
+    assert.equal(
+      markJson.state.chatMessages.find((m) => m.id === sendJson.message.id)?.read,
+      true
+    );
+
+    // 5. Committee Management: add Student A using their portrait photo, verify saved, then delete
+    const addComRes = await POST(
+      new NextRequest('http://localhost:3000/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SAVE_COMMITTEE_MEMBER',
+          actorUid: 'admin_super',
+          committeeType: 'core',
+          fullName: 'Student Alpha',
+          designation: 'Media Secretary',
+          position: 'Media Secretary',
+          department: '11th Batch of DHBC',
+          avatarUrl: stuA.avatarUrl,
+        }),
+      })
+    );
+    assert.equal(addComRes.status, 200);
+    const addComJson = (await addComRes.json()) as {
+      state: { committeeMembers: Array<{ id: string; fullName: string; avatarUrl: string }> };
+    };
+    const addedMember = addComJson.state.committeeMembers.find((m) => m.fullName === 'Student Alpha');
+    assert.ok(addedMember);
+    assert.equal(addedMember.avatarUrl, studentAPhoto);
+
+    const delComRes = await POST(
+      new NextRequest('http://localhost:3000/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE_COMMITTEE_MEMBER',
+          actorUid: 'admin_super',
+          memberId: addedMember.id,
+        }),
+      })
+    );
+    assert.equal(delComRes.status, 200);
+    const delComJson = (await delComRes.json()) as {
+      state: { committeeMembers: Array<{ id: string }> };
+    };
+    assert.equal(
+      delComJson.state.committeeMembers.some((m) => m.id === addedMember.id),
+      false
+    );
+  } finally {
+    if (prevTestStore === undefined) {
+      delete process.env.ALNIBRAS_TEST_STORE_PATH;
+    } else {
+      process.env.ALNIBRAS_TEST_STORE_PATH = prevTestStore;
+    }
+    const { resetInMemoryServerStoreCache } = await import('./server-db');
+    resetInMemoryServerStoreCache();
+    if (fs.existsSync(tempStorePath)) fs.unlinkSync(tempStorePath);
+  }
+});
+
 
 
 

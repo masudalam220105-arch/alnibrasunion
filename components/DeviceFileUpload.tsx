@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Download,
 } from 'lucide-react';
+import { SafeImage } from './SafeImage';
 import {
   isSupportedImageFile,
   uploadFileToSupabaseStorage,
@@ -308,9 +309,7 @@ export function DeviceFileUpload({
           <div className="flex items-center gap-3 min-w-0">
             {isImage(uploadedMeta) ? (
               <div className="w-12 h-12 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-50 flex items-center justify-center">
-                {/* Local user device uploaded preview image */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <SafeImage
                   src={uploadedMeta.url}
                   alt={uploadedMeta.name}
                   className="w-full h-full object-cover"
@@ -341,7 +340,16 @@ export function DeviceFileUpload({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="device-upload-replace-btn"
+              className="px-2.5 py-1.5 rounded-lg bg-[#064E3B] hover:bg-[#0B3D32] text-white text-[11px] font-bold transition-colors cursor-pointer"
+              title="Upload a new file from your device"
+            >
+              Upload New
+            </button>
             {uploadedMeta.url && (
               <a
                 href={uploadedMeta.url}

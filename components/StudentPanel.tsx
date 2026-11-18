@@ -36,9 +36,6 @@ import {
   Star,
   Camera,
   Upload,
-  Check,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -55,7 +52,6 @@ import { LiveDateTimeClock } from './LiveDateTimeClock';
 import { SafeImage } from './SafeImage';
 import { OfficialLogo } from './OfficialBrandingView';
 import ThemeToggle from './ThemeToggle';
-import { useTheme } from '@/context/ThemeContext';
 import PhotoLightboxModal from './PhotoLightboxModal';
 import PortalHeaderSearch from './PortalHeaderSearch';
 import type { PortalTopSearchResult } from '@/lib/portal-search';
@@ -74,34 +70,6 @@ import {
 import { SelectWithCustom } from './SelectWithCustom';
 import { uploadImageAsset } from '@/lib/supabase-storage';
 import type { PortalDatabaseState, UserProfile } from '@/lib/types';
-
-export const STUDENT_AVATAR_PRESETS: { id: string; label: string; url: string }[] = [
-  {
-    id: 'preset_scholar',
-    label: 'Scholar Portrait',
-    url: '/images/avatar_admin_portrait.jpg',
-  },
-  {
-    id: 'preset_emblem',
-    label: 'Al-Nibras Emblem',
-    url: '/assets/aistudio/al-nibras_logo_3b0dfbfe.png',
-  },
-  {
-    id: 'preset_library',
-    label: 'Academic Library',
-    url: '/images/hero_campus_library.jpg',
-  },
-  {
-    id: 'preset_symposium',
-    label: 'Symposium Crest',
-    url: '/images/union_hall_symposium.jpg',
-  },
-  {
-    id: 'preset_convocation',
-    label: 'Convocation Hall',
-    url: '/images/gallery_convocation.jpg',
-  },
-];
 
 export type StudentTab =
   | 'dashboard'
@@ -139,7 +107,6 @@ export function StudentPanel({
   onSwitchToPublic,
   showToast,
 }: StudentPanelProps) {
-  const { resolvedTheme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
@@ -559,28 +526,6 @@ export function StudentPanel({
                 }
               }}
             />
-            <button
-              type="button"
-              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              data-testid="student-theme-switcher-btn"
-              aria-label={
-                resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-              }
-              title={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="press-scale inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#E5EAE6] dark:border-[#1E3F35] bg-[#F8FAF7] dark:bg-[#112A22] text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] hover:border-[#064E3B] dark:hover:border-[#D4AF37] transition-colors cursor-pointer"
-            >
-              {resolvedTheme === 'dark' ? (
-                <>
-                  <Sun className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span className="hidden 2xl:inline">Light Mode</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-3.5 h-3.5 text-[#064E3B]" />
-                  <span className="hidden 2xl:inline">Dark Mode</span>
-                </>
-              )}
-            </button>
             <ThemeToggle compact />
 
             {/* Notifications Dropdown */}
@@ -1177,7 +1122,7 @@ export function StudentPanel({
                             className="group bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] hover:border-[#D4AF37]/60 rounded-xl p-5 flex items-start gap-4 h-full transition-colors"
                           >
                             <div className="flex items-start gap-4">
-                              <img
+                              <SafeImage
                                 src={member.avatarUrl || '/images/avatar_admin_portrait.jpg'}
                                 alt={member.fullName}
                                 className="w-14 h-14 rounded-full object-cover border-2 border-[#D4AF37] shrink-0 transition-transform duration-300 group-hover:scale-105"
@@ -1725,74 +1670,6 @@ export function StudentPanel({
                       data-testid="student-avatar-upload-btn-input"
                     />
                   </label>
-                </div>
-
-                {/* Personalize Profile Avatar Section */}
-                <div
-                  data-testid="student-avatar-settings"
-                  className="p-4 sm:p-5 rounded-xl bg-[#F8FAF7] dark:bg-[#071713] border border-[#E5EAE6] dark:border-[#1B3B31] space-y-4"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#064E3B] dark:text-[#D4AF37] flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5" /> Personalize Profile Avatar
-                      </h3>
-                      <p className="text-xs text-[#718078] dark:text-[#9AB0A6] mt-0.5">
-                        Select an institutional avatar preset below or upload a custom photo from your device.
-                      </p>
-                    </div>
-                    {selectedAvatarUrl !== currentUser.avatarUrl && (
-                      <button
-                        type="button"
-                        disabled={savingAvatar}
-                        onClick={() => void handleSaveAvatar(selectedAvatarUrl)}
-                        data-testid="save-student-avatar-btn"
-                        className="px-4 py-2 rounded-lg bg-[#064E3B] hover:bg-[#0B3D32] text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
-                      >
-                        <Check className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        <span>{savingAvatar ? 'Saving...' : 'Save Avatar'}</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    {STUDENT_AVATAR_PRESETS.map((preset) => {
-                      const isSelected =
-                        (selectedAvatarUrl || currentUser.avatarUrl) === preset.url;
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedAvatarUrl(preset.url);
-                            void handleSaveAvatar(preset.url);
-                          }}
-                          data-testid={`avatar-preset-${preset.id}`}
-                          className={`press-scale hover-lift p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-white dark:bg-[#0D231D] border-[#D4AF37] ring-2 ring-[#D4AF37]/40'
-                              : 'bg-white/70 dark:bg-[#0D231D]/60 border-[#E5EAE6] dark:border-[#1B3B31] hover:border-[#064E3B]'
-                          }`}
-                        >
-                          <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#D4AF37]/60">
-                            <SafeImage
-                              src={preset.url}
-                              alt={preset.label}
-                              className="w-full h-full object-cover"
-                            />
-                            {isSelected && (
-                              <span className="absolute inset-0 bg-[#064E3B]/45 flex items-center justify-center">
-                                <Check className="w-4 h-4 text-[#D4AF37]" />
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[11px] font-semibold text-[#17221F] dark:text-white text-center line-clamp-1">
-                            {preset.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 {/* Personal & Academic Details */}

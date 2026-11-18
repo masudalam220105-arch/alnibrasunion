@@ -17,6 +17,7 @@ import {
   Star,
 } from 'lucide-react';
 import { DeviceFileUpload } from './DeviceFileUpload';
+import { SafeImage } from './SafeImage';
 import { SelectWithCustom } from './SelectWithCustom';
 import type {
   CommitteeMember,
@@ -25,6 +26,7 @@ import type {
   DatabaseBackupMeta,
   FeedbackRecord,
   SlideshowSlide,
+  UserProfile,
 } from '@/lib/types';
 import type { RlsDiagnosticReport } from '@/lib/supabase-rls-diagnostic';
 
@@ -150,7 +152,7 @@ export function AdminSlideshowManager({
             >
               <div>
                 <div className="relative h-44 bg-[#071713]">
-                  <img
+                  <SafeImage
                     src={slide.imageUrl}
                     alt={slide.title}
                     className="w-full h-full object-cover"
@@ -333,11 +335,13 @@ const SUB_ROLE_OPTIONS = ['Chairman', 'Convener'];
 
 export function AdminCommitteeManager({
   members = [],
+  users = [],
   customTypes = [],
   onMutate,
   showToast,
 }: {
   members: CommitteeMember[];
+  users?: UserProfile[];
   customTypes?: CustomTypeRecord[];
   onMutate: (payload: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
   showToast: (msg: string, type?: 'success' | 'error') => void;
@@ -345,6 +349,7 @@ export function AdminCommitteeManager({
   const [committeeFilter, setCommitteeFilter] = useState<'all' | CommitteeType>('all');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState('');
+  const [linkedStudentUid, setLinkedStudentUid] = useState('');
   const [committeeType, setCommitteeType] = useState<CommitteeType>('core');
   const [fullName, setFullName] = useState('');
   const [designation, setDesignation] = useState('President');
@@ -354,6 +359,10 @@ export function AdminCommitteeManager({
   const [contactPhone, setContactPhone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState('');
+
+  const activeStudents = users.filter((u) => u.role === 'student' && u.status !== 'inactive');
 
   const savedCorePositions = customTypes
     .filter((c) => c.module === 'committeePosition')
@@ -371,8 +380,22 @@ export function AdminCommitteeManager({
     void onMutate({ action: 'ADD_CUSTOM_TYPE', module: moduleName, name: trimmed });
   };
 
+  const handleLinkStudent = (uid: string) => {
+    setLinkedStudentUid(uid);
+    if (!uid) return;
+    const student = activeStudents.find((s) => s.uid === uid);
+    if (!student) return;
+    setFullName(student.fullName);
+    setAvatarUrl(student.avatarUrl || '');
+    setDepartment(student.classInfo || student.department || '11th Batch of DHBC');
+    if (student.contactPhone) {
+      setContactPhone(student.contactPhone);
+    }
+  };
+
   const openCreate = (presetType: CommitteeType = 'core') => {
     setEditingId('');
+    setLinkedStudentUid('');
     setCommitteeType(presetType);
     setFullName('');
     setDesignation('President');
@@ -382,6 +405,7 @@ export function AdminCommitteeManager({
     setContactPhone('');
     setAvatarUrl('');
     setUploadingPhoto(false);
+    setSaving(false);
     setShowModal(true);
   };
 
@@ -389,6 +413,7 @@ export function AdminCommitteeManager({
     const inferredType: CommitteeType =
       m.committeeType === 'sub' || Boolean(m.wingName) || Boolean(m.subRole) ? 'sub' : 'core';
     setEditingId(m.id);
+    setLinkedStudentUid('');
     setCommitteeType(inferredType);
     setFullName(m.fullName);
     setDesignation(m.designation || m.position || (inferredType === 'sub' ? 'Chairman' : 'President'));
@@ -398,6 +423,7 @@ export function AdminCommitteeManager({
     setContactPhone(m.contactPhone || '');
     setAvatarUrl(m.avatarUrl || '');
     setUploadingPhoto(false);
+    setSaving(false);
     setShowModal(true);
   };
 
@@ -414,6 +440,10 @@ export function AdminCommitteeManager({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadingPhoto) {
+      showToast('Please wait for the photo upload to finish.', 'error');
+      return;
+    }
     if (!fullName.trim()) {
       showToast('Member full name is required.', 'error');
       return;
@@ -425,61 +455,71 @@ export function AdminCommitteeManager({
         return;
       }
       const effectiveSubRole = subRole.trim() || 'Convener';
+      setSaving(true);
+      try {
+        const res = await onMutate({
+          action: 'SAVE_COMMITTEE_MEMBER',
+          id: editingId,
+          committeeType: 'sub',
+          fullName: fullName.trim(),
+          wingName: wingName.trim(),
+          subRole: effectiveSubRole,
+          designation: `${effectiveSubRole} — ${wingName.trim()}`,
+          position: effectiveSubRole,
+          roleCategory: wingName.trim(),
+          department: wingName.trim(),
+          batch: 'Sub Committee',
+          batchInfo: 'Sub Committee',
+          contactPhone,
+          avatarUrl: avatarUrl || '/images/avatar_admin_portrait.jpg',
+          showOnHomepage: true,
+        });
+        if (res.ok) {
+          showToast(
+            editingId ? 'Sub Committee member updated' : 'Sub Committee member added',
+            'success'
+          );
+          setShowModal(false);
+        } else {
+          showToast(res.error || 'Could not save committee member', 'error');
+        }
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    const effectiveDesignation = designation.trim() || 'Executive Member';
+    setSaving(true);
+    try {
       const res = await onMutate({
         action: 'SAVE_COMMITTEE_MEMBER',
         id: editingId,
-        committeeType: 'sub',
+        committeeType: 'core',
         fullName: fullName.trim(),
-        wingName: wingName.trim(),
-        subRole: effectiveSubRole,
-        designation: `${effectiveSubRole} — ${wingName.trim()}`,
-        position: effectiveSubRole,
-        roleCategory: wingName.trim(),
-        department: wingName.trim(),
-        batch: 'Sub Committee',
-        batchInfo: 'Sub Committee',
+        designation: effectiveDesignation,
+        position: effectiveDesignation,
+        roleCategory: 'Executive',
+        wingName: undefined,
+        subRole: undefined,
+        department: department.trim() || '11th Batch of DHBC',
+        batch: 'Core Committee',
+        batchInfo: 'Core Committee',
         contactPhone,
         avatarUrl: avatarUrl || '/images/avatar_admin_portrait.jpg',
         showOnHomepage: true,
       });
       if (res.ok) {
         showToast(
-          editingId ? 'Sub Committee member updated' : 'Sub Committee member added',
+          editingId ? 'Core Committee member updated' : 'Core Committee member added',
           'success'
         );
         setShowModal(false);
       } else {
         showToast(res.error || 'Could not save committee member', 'error');
       }
-      return;
-    }
-
-    const effectiveDesignation = designation.trim() || 'Executive Member';
-    const res = await onMutate({
-      action: 'SAVE_COMMITTEE_MEMBER',
-      id: editingId,
-      committeeType: 'core',
-      fullName: fullName.trim(),
-      designation: effectiveDesignation,
-      position: effectiveDesignation,
-      roleCategory: 'Executive',
-      wingName: undefined,
-      subRole: undefined,
-      department: department.trim() || '11th Batch of DHBC',
-      batch: 'Core Committee',
-      batchInfo: 'Core Committee',
-      contactPhone,
-      avatarUrl: avatarUrl || '/images/avatar_admin_portrait.jpg',
-      showOnHomepage: true,
-    });
-    if (res.ok) {
-      showToast(
-        editingId ? 'Core Committee member updated' : 'Core Committee member added',
-        'success'
-      );
-      setShowModal(false);
-    } else {
-      showToast(res.error || 'Could not save committee member', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -566,7 +606,7 @@ export function AdminCommitteeManager({
                 className="bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl p-5 flex flex-col justify-between gap-4"
               >
                 <div className="flex items-start gap-3.5">
-                  <img
+                  <SafeImage
                     src={m.avatarUrl || '/images/avatar_admin_portrait.jpg'}
                     alt={m.fullName}
                     className="w-14 h-14 rounded-full object-cover border-2 border-[#D4AF37] shrink-0"
@@ -607,6 +647,7 @@ export function AdminCommitteeManager({
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E5EAE6] dark:border-[#1B3B31]">
                   <button
                     type="button"
+                    data-testid={`edit-committee-${m.id}`}
                     onClick={() => openEdit(m)}
                     className="px-3 py-1 rounded border border-[#E5EAE6] dark:border-[#1B3B31] text-xs font-semibold cursor-pointer inline-flex items-center gap-1"
                   >
@@ -614,16 +655,28 @@ export function AdminCommitteeManager({
                   </button>
                   <button
                     type="button"
+                    disabled={deletingId === m.id}
+                    data-testid={`delete-committee-${m.id}`}
+                    aria-label={`Delete ${m.fullName}`}
                     onClick={async () => {
-                      const res = await onMutate({
-                        action: 'DELETE_COMMITTEE_MEMBER',
-                        memberId: m.id,
-                      });
-                      if (res.ok) showToast('Committee member removed', 'success');
+                      setDeletingId(m.id);
+                      try {
+                        const res = await onMutate({
+                          action: 'DELETE_COMMITTEE_MEMBER',
+                          memberId: m.id,
+                        });
+                        if (res.ok) {
+                          showToast(`${m.fullName} removed from committee`, 'success');
+                        } else {
+                          showToast(res.error || 'Could not remove committee member', 'error');
+                        }
+                      } finally {
+                        setDeletingId('');
+                      }
                     }}
-                    className="px-3 py-1 rounded border border-rose-200 text-rose-600 text-xs font-semibold cursor-pointer inline-flex items-center gap-1"
+                    className="px-3 py-1 rounded border border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-50 text-xs font-semibold cursor-pointer inline-flex items-center gap-1"
                   >
-                    <Trash2 className="w-3 h-3" /> Delete
+                    <Trash2 className="w-3 h-3" /> {deletingId === m.id ? 'Removing...' : 'Delete'}
                   </button>
                 </div>
               </div>
@@ -685,6 +738,25 @@ export function AdminCommitteeManager({
                     Sub Committee
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] mb-1">
+                  Link Existing Student Account (Auto-fill Name &amp; Photo)
+                </label>
+                <select
+                  value={linkedStudentUid}
+                  onChange={(e) => handleLinkStudent(e.target.value)}
+                  data-testid="committee-link-student-select"
+                  className="w-full px-3.5 py-2 text-xs rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-[#17221F] dark:text-[#F0F5F2]"
+                >
+                  <option value="">-- Optional: Pick a Student Account to Auto-fill --</option>
+                  {activeStudents.map((s) => (
+                    <option key={s.uid} value={s.uid}>
+                      {s.fullName} ({s.studentId || s.username})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -818,14 +890,14 @@ export function AdminCommitteeManager({
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#D4AF37] bg-slate-100 shrink-0">
-                    <img
+                    <SafeImage
                       src={avatarUrl || '/images/avatar_admin_portrait.jpg'}
                       alt={fullName || 'Member portrait preview'}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="text-[11px] text-[#718078] dark:text-[#9AB0A6]">
-                    {avatarUrl ? 'Portrait photo ready for save.' : 'Using default portrait placeholder unless a photo is uploaded.'}
+                    {avatarUrl ? 'Portrait photo ready for save.' : 'Upload a photo or link a student account above.'}
                   </div>
                 </div>
                 <DeviceFileUpload
@@ -835,7 +907,7 @@ export function AdminCommitteeManager({
                   destination="public"
                   currentUrl={avatarUrl}
                   onUploadingChange={setUploadingPhoto}
-                  onSelect={(res) => setAvatarUrl(res.dataUrl)}
+                  onFileUploaded={(meta) => setAvatarUrl(meta.url)}
                   onClear={() => setAvatarUrl('')}
                 />
               </div>
@@ -849,13 +921,15 @@ export function AdminCommitteeManager({
                 </button>
                 <button
                   type="submit"
-                  disabled={uploadingPhoto}
+                  disabled={uploadingPhoto || saving}
                   data-testid="committee-save-member-btn"
                   className="px-5 py-2 rounded-lg bg-[#064E3B] disabled:opacity-60 text-white text-xs font-bold cursor-pointer"
                 >
                   {uploadingPhoto
                     ? 'Uploading Photo...'
-                    : `Save ${committeeType === 'sub' ? 'Sub Committee' : 'Core Committee'} Member`}
+                    : saving
+                      ? 'Saving...'
+                      : `Save ${committeeType === 'sub' ? 'Sub Committee' : 'Core Committee'} Member`}
                 </button>
               </div>
             </form>

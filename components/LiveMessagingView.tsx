@@ -7,13 +7,13 @@ import {
   Download,
   FileText,
   Forward,
-  Image as ImageIcon,
   MessageSquare,
   Paperclip,
   Reply,
   Search,
   Send,
   Trash2,
+  Upload,
   Video,
   X,
 } from 'lucide-react';
@@ -21,6 +21,7 @@ import type { ChatMessage, UserProfile } from '@/lib/types';
 import { formatIndiaTime } from '@/lib/portal-logic';
 import { DeviceFileUpload, type UploadedFileMeta } from './DeviceFileUpload';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { SafeImage } from './SafeImage';
 import { OFFICIAL_ALNIBRAS_LOGO_PATH } from './OfficialBrandingView';
 
 export interface LiveMessagingViewProps {
@@ -39,8 +40,8 @@ export interface LiveMessagingViewProps {
     forwardedFromName?: string;
   }) => Promise<{ ok: boolean; error?: string }>;
   onDeleteMessage?: (id: string) => Promise<{ ok: boolean; error?: string }>;
-  onMarkRead?: (conversationId: string) => void;
-  showToast?: (message: string, type: 'success' | 'error') => void;
+  onMarkRead?: (peerId: string) => void;
+  showToast?: (message: string, type?: 'success' | 'error') => void;
 }
 
 export function LiveMessagingView({
@@ -53,14 +54,35 @@ export function LiveMessagingView({
   showToast,
 }: LiveMessagingViewProps) {
   const isAdmin = currentUser.role === 'admin';
-  const students = useMemo(() => users.filter((u) => u.role === 'student'), [users]);
 
-  const [selectedStudentUid, setSelectedStudentUid] = useState<string>(() => {
-    if (isAdmin) {
-      return students[0]?.uid || '';
+  // Include ALL active user accounts created by Admin (Admins & Students) excluding self
+  const chatPartners = useMemo(() => {
+    return users
+      .filter((u) => u.uid !== currentUser.uid && u.status !== 'inactive')
+      .sort((a, b) => {
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        if (a.role !== 'admin' && b.role === 'admin') return 1;
+        return a.fullName.localeCompare(b.fullName);
+      });
+  }, [users, currentUser.uid]);
+
+  const [selectedPartnerUid, setSelectedPartnerUid] = useState<string>(() => {
+    if (!isAdmin && chatPartners.some((u) => u.uid === 'admin_super')) {
+      return 'admin_super';
     }
-    return 'admin_super';
+    return chatPartners[0]?.uid || '';
   });
+
+  // Always resolve to an active valid partner if the list hydrates asynchronously
+  const activePartnerUid = useMemo(() => {
+    if (selectedPartnerUid && chatPartners.some((u) => u.uid === selectedPartnerUid)) {
+      return selectedPartnerUid;
+    }
+    if (!isAdmin && chatPartners.some((u) => u.uid === 'admin_super')) {
+      return 'admin_super';
+    }
+    return chatPartners[0]?.uid || '';
+  }, [selectedPartnerUid, chatPartners, isAdmin]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [messageFilterQuery, setMessageFilterQuery] = useState('');
@@ -73,21 +95,14 @@ export function LiveMessagingView({
   const [pendingDeleteChat, setPendingDeleteChat] = useState<ChatMessage | null>(null);
   const [isDeletingChat, setIsDeletingChat] = useState(false);
 
-  // Group messages for active conversation
+  // Strict 1-to-1 thread filter for (currentUser.uid <-> activePartnerUid)
   const currentConversationMessages = useMemo(() => {
-    const raw = isAdmin
-      ? chatMessages.filter(
-          (m) =>
-            (m.senderId === selectedStudentUid && m.recipientId === currentUser.uid) ||
-            (m.senderId === currentUser.uid && m.recipientId === selectedStudentUid) ||
-            m.conversationId === selectedStudentUid
-        )
-      : chatMessages.filter(
-          (m) =>
-            (m.senderId === currentUser.uid && m.recipientId === 'admin_super') ||
-            (m.senderId === 'admin_super' && m.recipientId === currentUser.uid) ||
-            m.conversationId === currentUser.uid
-        );
+    if (!activePartnerUid) return [];
+    const raw = chatMessages.filter(
+      (m) =>
+        (m.senderId === currentUser.uid && m.recipientId === activePartnerUid) ||
+        (m.senderId === activePartnerUid && m.recipientId === currentUser.uid)
+    );
 
     if (!messageFilterQuery.trim()) return raw;
     const q = messageFilterQuery.toLowerCase();
@@ -96,75 +111,64 @@ export function LiveMessagingView({
         m.text.toLowerCase().includes(q) ||
         (m.attachmentName || '').toLowerCase().includes(q)
     );
-  }, [chatMessages, isAdmin, selectedStudentUid, currentUser.uid, messageFilterQuery]);
+  }, [chatMessages, activePartnerUid, currentUser.uid, messageFilterQuery]);
 
-  // Student conversations metadata for left sidebar
-  const studentConversationList = useMemo(() => {
-    if (!isAdmin) {
+  // Build conversations list for EVERY active account
+  const conversationList = useMemo(() => {
+    return chatPartners.map((partner) => {
       const msgs = chatMessages.filter(
         (m) =>
-          (m.senderId === currentUser.uid && m.recipientId === 'admin_super') ||
-          (m.senderId === 'admin_super' && m.recipientId === currentUser.uid) ||
-          m.conversationId === currentUser.uid
-      );
-      const lastMessage = msgs[msgs.length - 1];
-      const unreadCount = msgs.filter((m) => m.senderId === 'admin_super' && !m.read).length;
-      return [
-        {
-          uid: 'admin_super',
-          title: 'AL-NIBRAS Secretariat',
-          subtitle: 'Super Admin · Official Union Desk',
-          avatarUrl: OFFICIAL_ALNIBRAS_LOGO_PATH,
-          lastMessage,
-          unreadCount,
-        },
-      ];
-    }
-
-    return students.map((student) => {
-      const msgs = chatMessages.filter(
-        (m) =>
-          (m.senderId === student.uid && m.recipientId === currentUser.uid) ||
-          (m.senderId === currentUser.uid && m.recipientId === student.uid) ||
-          m.conversationId === student.uid
+          (m.senderId === partner.uid && m.recipientId === currentUser.uid) ||
+          (m.senderId === currentUser.uid && m.recipientId === partner.uid)
       );
 
       const lastMessage = msgs[msgs.length - 1];
-      const unreadCount = msgs.filter((m) => m.senderId === student.uid && !m.read).length;
+      const unreadCount = msgs.filter(
+        (m) => m.senderId === partner.uid && m.recipientId === currentUser.uid && !m.read
+      ).length;
+
+      const isPartnerAdmin = partner.role === 'admin' || partner.uid === 'admin_super';
 
       return {
-        uid: student.uid,
-        title: student.fullName,
-        subtitle: `${student.studentId} · Roll ${student.rollNumber}`,
-        avatarUrl: student.avatarUrl || '/images/avatar_admin_portrait.jpg',
+        uid: partner.uid,
+        role: partner.role,
+        title: isPartnerAdmin ? `${partner.fullName} (Union Admin)` : partner.fullName,
+        subtitle: isPartnerAdmin
+          ? 'Union Administration · Official Desk'
+          : `${partner.studentId || 'Member'} · Roll ${partner.rollNumber || 'N/A'}`,
+        avatarUrl: isPartnerAdmin
+          ? partner.avatarUrl || OFFICIAL_ALNIBRAS_LOGO_PATH
+          : partner.avatarUrl || '/images/avatar_admin_portrait.jpg',
         lastMessage,
         unreadCount,
       };
     });
-  }, [isAdmin, students, chatMessages, currentUser.uid]);
+  }, [chatPartners, chatMessages, currentUser.uid]);
 
   const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) return studentConversationList;
+    if (!searchQuery.trim()) return conversationList;
     const q = searchQuery.toLowerCase();
-    return studentConversationList.filter(
+    return conversationList.filter(
       (c) => c.title.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q)
     );
-  }, [studentConversationList, searchQuery]);
+  }, [conversationList, searchQuery]);
 
-  const activeStudentProfile = useMemo(() => {
-    return students.find((s) => s.uid === selectedStudentUid);
-  }, [students, selectedStudentUid]);
+  const activePartnerProfile = useMemo(() => {
+    return chatPartners.find((u) => u.uid === activePartnerUid);
+  }, [chatPartners, activePartnerUid]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activePartnerUid) {
+      showToast?.('Please select an account from the chat list first.', 'error');
+      return;
+    }
     if (!inputText.trim() && !stagedAttachment) return;
 
     setIsSending(true);
-    const recipientId = isAdmin ? selectedStudentUid : 'admin_super';
-
     try {
       const res = await onSendMessage({
-        recipientId,
+        recipientId: activePartnerUid,
         text: inputText.trim(),
         attachmentUrl: stagedAttachment?.url,
         attachmentName: stagedAttachment?.name,
@@ -201,155 +205,177 @@ export function LiveMessagingView({
       if (res.ok) {
         showToast?.('Message forwarded.', 'success');
         setForwardingMessage(null);
+      } else {
+        showToast?.(res.error || 'Failed to forward message.', 'error');
       }
     } finally {
       setIsSending(false);
     }
   };
 
+  const isActivePartnerAdmin =
+    activePartnerProfile?.role === 'admin' || activePartnerProfile?.uid === 'admin_super';
+
   return (
     <div className="space-y-4" data-testid="telegram-chat-view">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-[#0C1A2E]">
-            Chat &amp; Direct Secretariat Messenger
+          <h1 className="text-2xl font-serif font-bold text-[#0C1A2E] dark:text-white">
+            Personal &amp; Union Chat Messenger
           </h1>
-          <p className="text-xs text-[#64748B] mt-0.5">
-            Telegram-style real-time union messaging with replies, forwarding, read receipts, and
-            Image / Video / PDF / Document attachments.
+          <p className="text-xs text-[#64748B] dark:text-[#9AB0A6] mt-0.5">
+            Direct 1-to-1 personal chat across all active Union &amp; Student accounts with replies,
+            forwarding, read receipts, and attachments.
           </p>
         </div>
       </div>
 
-      {/* Main Telegram-Style Split Container */}
-      <div className="bg-white border border-[#E2DDD2] rounded-2xl overflow-hidden shadow-md grid grid-cols-1 md:grid-cols-12 min-h-[620px]">
-        {/* LEFT SIDEBAR: Conversation List */}
-        <div className="md:col-span-4 border-r border-[#E2DDD2] flex flex-col bg-[#F8FAFC]">
+      {/* Main Split Container */}
+      <div className="bg-white dark:bg-[#0D231D] border border-[#E2DDD2] dark:border-[#1B3B31] rounded-2xl overflow-hidden shadow-md grid grid-cols-1 md:grid-cols-12 md:h-[640px] min-h-[540px]">
+        {/* LEFT SIDEBAR: All Active Accounts */}
+        <div className="md:col-span-4 border-r border-[#E2DDD2] dark:border-[#1B3B31] flex flex-col min-h-0 md:h-full overflow-hidden bg-[#F8FAFC] dark:bg-[#071713]">
           {/* Search Bar */}
-          <div className="p-3.5 border-b border-[#E2DDD2] bg-white">
+          <div className="p-3.5 border-b border-[#E2DDD2] dark:border-[#1B3B31] bg-white dark:bg-[#0D231D] shrink-0">
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..."
-                className="w-full pl-9 pr-3 py-2 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl focus:outline-none focus:border-[#0C1A2E]"
+                placeholder="Search members or admins..."
+                data-testid="chat-search-accounts"
+                className="w-full pl-9 pr-3 py-2 text-xs bg-[#F8FAFC] dark:bg-[#071713] border border-[#CBD5E1] dark:border-[#1B3B31] rounded-xl text-[#0F172A] dark:text-white focus:outline-none focus:border-[#0C1A2E]"
               />
             </div>
+            <p className="text-[10px] text-slate-500 dark:text-[#9AB0A6] mt-1.5 font-mono">
+              {chatPartners.length} active account{chatPartners.length === 1 ? '' : 's'} available
+            </p>
           </div>
 
           {/* Conversation Items */}
-          <div className="grow overflow-y-auto divide-y divide-[#E2DDD2]/60">
-            {filteredConversations.map((conv) => {
-              const isSelected = isAdmin
-                ? selectedStudentUid === conv.uid
-                : conv.uid === 'admin_super';
-              return (
-                <button
-                  key={conv.uid}
-                  type="button"
-                  onClick={() => {
-                    if (isAdmin) {
-                      setSelectedStudentUid(conv.uid);
+          <div className="grow min-h-0 overflow-y-auto divide-y divide-[#E2DDD2]/60 dark:divide-[#1B3B31]">
+            {filteredConversations.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-500 dark:text-[#9AB0A6]">
+                No matching accounts found.
+              </div>
+            ) : (
+              filteredConversations.map((conv) => {
+                const isSelected = activePartnerUid === conv.uid;
+                return (
+                  <button
+                    key={conv.uid}
+                    type="button"
+                    data-testid={`chat-partner-${conv.uid}`}
+                    onClick={() => {
+                      setSelectedPartnerUid(conv.uid);
                       onMarkRead?.(conv.uid);
-                    } else {
-                      onMarkRead?.(currentUser.uid);
-                    }
-                  }}
-                  className={`w-full text-left p-3.5 flex items-center gap-3 transition-colors cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#0C1A2E] text-white'
-                      : 'hover:bg-white text-[#0F172A]'
-                  }`}
-                >
-                  <div className="relative shrink-0">
-                    <img
-                      src={conv.avatarUrl}
-                      alt={conv.title}
-                      className="w-11 h-11 rounded-full object-cover border-2 border-[#C59B27] bg-white"
-                    />
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white absolute bottom-0 right-0" />
-                  </div>
+                    }}
+                    className={`w-full text-left p-3.5 flex items-center gap-3 transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#0C1A2E] text-white'
+                        : 'hover:bg-white dark:hover:bg-[#0D231D] text-[#0F172A] dark:text-[#F0F5F2]'
+                    }`}
+                  >
+                    <div className="relative shrink-0 w-11 h-11 rounded-full overflow-hidden border-2 border-[#C59B27] bg-white">
+                      <SafeImage
+                        src={conv.avatarUrl}
+                        alt={conv.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
 
-                  <div className="grow min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span
-                        className={`font-bold text-xs truncate ${
-                          isSelected ? 'text-white' : 'text-[#0C1A2E]'
-                        }`}
-                      >
-                        {conv.title}
-                      </span>
-                      {conv.lastMessage && (
+                    <div className="grow min-w-0">
+                      <div className="flex items-center justify-between gap-1">
                         <span
-                          className={`text-[10px] font-mono shrink-0 ${
-                            isSelected ? 'text-[#E6C665]' : 'text-slate-400'
+                          className={`font-bold text-xs truncate ${
+                            isSelected ? 'text-white' : 'text-[#0C1A2E] dark:text-white'
                           }`}
                         >
-                          {formatIndiaTime(conv.lastMessage.createdAt)}
+                          {conv.title}
                         </span>
-                      )}
+                        {conv.lastMessage && (
+                          <span
+                            className={`text-[10px] font-mono shrink-0 ${
+                              isSelected ? 'text-[#E6C665]' : 'text-slate-400'
+                            }`}
+                          >
+                            {formatIndiaTime(conv.lastMessage.createdAt)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className={`text-[10px] font-mono truncate ${
+                          isSelected ? 'text-slate-300' : 'text-[#9A7515] dark:text-[#D4AF37]'
+                        }`}
+                      >
+                        {conv.subtitle}
+                      </div>
+
+                      <p
+                        className={`text-[11px] truncate mt-0.5 ${
+                          isSelected ? 'text-slate-200' : 'text-slate-500 dark:text-[#9AB0A6]'
+                        }`}
+                      >
+                        {conv.lastMessage
+                          ? `${conv.lastMessage.senderId === currentUser.uid ? 'You: ' : ''}${
+                              conv.lastMessage.text ||
+                              (conv.lastMessage.attachmentName
+                                ? `Attached ${conv.lastMessage.attachmentName}`
+                                : '')
+                            }`
+                          : 'Tap to start personal chat'}
+                      </p>
                     </div>
 
-                    <div
-                      className={`text-[10px] font-mono truncate ${
-                        isSelected ? 'text-slate-300' : 'text-[#9A7515]'
-                      }`}
-                    >
-                      {conv.subtitle}
-                    </div>
-
-                    <p
-                      className={`text-[11px] truncate mt-0.5 ${
-                        isSelected ? 'text-slate-200' : 'text-slate-500'
-                      }`}
-                    >
-                      {conv.lastMessage?.text ||
-                        (conv.lastMessage?.attachmentName
-                          ? `📎 ${conv.lastMessage.attachmentName}`
-                          : 'No messages yet.')}
-                    </p>
-                  </div>
-
-                  {conv.unreadCount > 0 && (
-                    <span className="px-2 py-0.5 bg-[#C59B27] text-[#07111F] font-extrabold text-[10px] rounded-full shrink-0 font-mono">
-                      {conv.unreadCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                    {conv.unreadCount > 0 && (
+                      <span className="px-2 py-0.5 bg-[#C59B27] text-[#07111F] font-extrabold text-[10px] rounded-full shrink-0 font-mono">
+                        {conv.unreadCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* RIGHT CONVERSATION WINDOW */}
-        <div className="md:col-span-8 flex flex-col bg-[#F0ECE1]/50">
+        <div className="md:col-span-8 flex flex-col min-h-0 md:h-full overflow-hidden bg-[#F0ECE1]/50 dark:bg-[#071713]/70">
           {/* Chat Header */}
-          <div className="px-5 py-3.5 border-b border-[#E2DDD2] bg-white flex flex-wrap items-center justify-between gap-3">
+          <div className="px-5 py-3.5 border-b border-[#E2DDD2] dark:border-[#1B3B31] bg-white dark:bg-[#0D231D] flex flex-wrap items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3">
-              <img
-                src={
-                  isAdmin
-                    ? activeStudentProfile?.avatarUrl || '/images/avatar_admin_portrait.jpg'
-                    : OFFICIAL_ALNIBRAS_LOGO_PATH
-                }
-                alt="Chat Partner"
-                className="w-10 h-10 rounded-full object-cover border border-[#C59B27] bg-white"
-              />
+              <div className="w-10 h-10 rounded-full overflow-hidden border border-[#C59B27] bg-white shrink-0">
+                <SafeImage
+                  src={
+                    isActivePartnerAdmin
+                      ? activePartnerProfile?.avatarUrl || OFFICIAL_ALNIBRAS_LOGO_PATH
+                      : activePartnerProfile?.avatarUrl || '/images/avatar_admin_portrait.jpg'
+                  }
+                  alt={activePartnerProfile?.fullName || 'Chat Partner'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <div>
-                <h3 className="text-sm font-bold text-[#0C1A2E]">
-                  {isAdmin
-                    ? activeStudentProfile?.fullName || 'Select a student'
-                    : 'AL-NIBRAS Secretariat & Super Admin'}
+                <h3
+                  data-testid="chat-active-partner-name"
+                  className="text-sm font-bold text-[#0C1A2E] dark:text-white"
+                >
+                  {activePartnerProfile
+                    ? isActivePartnerAdmin
+                      ? `${activePartnerProfile.fullName} (Union Admin)`
+                      : activePartnerProfile.fullName
+                    : 'Select an account to chat'}
                 </h3>
-                <p className="text-[11px] text-[#64748B] font-mono">
-                  {isAdmin
-                    ? `${activeStudentProfile?.studentId || ''} · Roll: ${
-                        activeStudentProfile?.rollNumber || 'N/A'
-                      }`
-                    : 'Official Union Administration · Online'}
+                <p className="text-[11px] text-[#64748B] dark:text-[#9AB0A6] font-mono">
+                  {activePartnerProfile
+                    ? isActivePartnerAdmin
+                      ? 'Official Union Administration · Private Chat'
+                      : `${activePartnerProfile.studentId || 'Member'} · Roll: ${
+                          activePartnerProfile.rollNumber || 'N/A'
+                        } · Personal Chat`
+                    : 'Choose any account from the sidebar'}
                 </p>
               </div>
             </div>
@@ -362,20 +388,29 @@ export function LiveMessagingView({
                   value={messageFilterQuery}
                   onChange={(e) => setMessageFilterQuery(e.target.value)}
                   placeholder="Search in chat..."
-                  className="pl-8 pr-3 py-1.5 rounded-lg border border-[#CBD5E1] text-xs bg-[#F8FAFC]"
+                  className="pl-8 pr-3 py-1.5 rounded-lg border border-[#CBD5E1] dark:border-[#1B3B31] text-xs bg-[#F8FAFC] dark:bg-[#071713] text-[#0F172A] dark:text-white"
                 />
               </div>
             </div>
           </div>
 
           {/* Messages Stream */}
-          <div className="grow p-5 overflow-y-auto space-y-3 min-h-[380px]">
-            {currentConversationMessages.length === 0 ? (
+          <div className="flex-1 min-h-0 p-5 overflow-y-auto space-y-3">
+            {!activePartnerProfile ? (
               <div className="py-20 text-center text-xs text-slate-500 space-y-2">
                 <MessageSquare className="w-8 h-8 text-[#9A7515] mx-auto opacity-60" />
-                <p className="font-semibold text-[#0C1A2E]">No messages in this chat yet.</p>
+                <p className="font-semibold text-[#0C1A2E] dark:text-white">
+                  No active chat recipients available yet.
+                </p>
+              </div>
+            ) : currentConversationMessages.length === 0 ? (
+              <div className="py-20 text-center text-xs text-slate-500 dark:text-[#9AB0A6] space-y-2">
+                <MessageSquare className="w-8 h-8 text-[#9A7515] mx-auto opacity-60" />
+                <p className="font-semibold text-[#0C1A2E] dark:text-white">
+                  No messages with {activePartnerProfile.fullName} yet.
+                </p>
                 <p className="text-[11px]">
-                  Send a message or attach an Image, Video, PDF, or Document below.
+                  Send a private message or attach an Image, Video, PDF, or Document below.
                 </p>
               </div>
             ) : (
@@ -399,9 +434,15 @@ export function LiveMessagingView({
                       className={`max-w-lg rounded-2xl p-3.5 space-y-2 text-xs shadow-xs group relative ${
                         isMine
                           ? 'bg-[#0C1A2E] text-white rounded-tr-xs'
-                          : 'bg-white border border-[#E2DDD2] text-[#0F172A] rounded-tl-xs'
+                          : 'bg-white dark:bg-[#0D231D] border border-[#E2DDD2] dark:border-[#1B3B31] text-[#0F172A] dark:text-[#F0F5F2] rounded-tl-xs'
                       }`}
                     >
+                      {!isMine && (
+                        <div className="text-[10px] font-bold text-[#9A7515] dark:text-[#D4AF37]">
+                          {msg.senderName}
+                        </div>
+                      )}
+
                       {/* Forwarded Indicator */}
                       {msg.forwardedFromName && (
                         <div
@@ -418,7 +459,9 @@ export function LiveMessagingView({
                       {msg.replyToText && (
                         <div
                           className={`p-2 rounded-lg border-l-4 border-[#C59B27] text-[11px] ${
-                            isMine ? 'bg-white/10 text-slate-200' : 'bg-[#F8FAFC] text-slate-600'
+                            isMine
+                              ? 'bg-white/10 text-slate-200'
+                              : 'bg-[#F8FAFC] dark:bg-[#071713] text-slate-600 dark:text-[#9AB0A6]'
                           }`}
                         >
                           <div className="font-bold text-[#C59B27]">
@@ -439,12 +482,12 @@ export function LiveMessagingView({
                           className={`p-2.5 rounded-xl border ${
                             isMine
                               ? 'bg-white/10 border-white/20 text-white'
-                              : 'bg-[#F8FAFC] border-[#E2DDD2] text-[#0F172A]'
+                              : 'bg-[#F8FAFC] dark:bg-[#071713] border-[#E2DDD2] dark:border-[#1B3B31] text-[#0F172A] dark:text-white'
                           }`}
                         >
                           {isImage ? (
                             <div className="space-y-1.5">
-                              <img
+                              <SafeImage
                                 src={msg.attachmentUrl}
                                 alt={msg.attachmentName || 'Image Attachment'}
                                 className="max-h-56 rounded-lg object-cover w-full"
@@ -513,17 +556,17 @@ export function LiveMessagingView({
                           type="button"
                           onClick={() => setReplyingTo(msg)}
                           title="Reply to message"
-                          className="p-0.5 hover:text-[#C59B27] transition-colors"
+                          className="p-0.5 hover:text-[#C59B27] transition-colors cursor-pointer"
                         >
                           <Reply className="w-3.5 h-3.5" />
                         </button>
 
-                        {isAdmin && students.length > 1 && (
+                        {chatPartners.length > 1 && (
                           <button
                             type="button"
                             onClick={() => setForwardingMessage(msg)}
                             title="Forward message"
-                            className="p-0.5 hover:text-[#C59B27] transition-colors"
+                            className="p-0.5 hover:text-[#C59B27] transition-colors cursor-pointer"
                           >
                             <Forward className="w-3.5 h-3.5" />
                           </button>
@@ -534,15 +577,13 @@ export function LiveMessagingView({
                             type="button"
                             onClick={() => setPendingDeleteChat(msg)}
                             title="Delete message"
-                            className="p-0.5 hover:text-rose-400 transition-colors"
+                            className="p-0.5 hover:text-rose-400 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
 
-                        <span>
-                          {formatIndiaTime(msg.createdAt)}
-                        </span>
+                        <span>{formatIndiaTime(msg.createdAt)}</span>
 
                         {isMine && (
                           <span title={msg.read ? 'Read' : 'Delivered'}>
@@ -578,7 +619,7 @@ export function LiveMessagingView({
               <button
                 type="button"
                 onClick={() => setReplyingTo(null)}
-                className="text-slate-500 hover:text-slate-800"
+                className="text-slate-500 hover:text-slate-800 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -596,7 +637,7 @@ export function LiveMessagingView({
               <button
                 type="button"
                 onClick={() => setStagedAttachment(null)}
-                className="text-amber-700 hover:text-amber-900"
+                className="text-amber-700 hover:text-amber-900 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -606,12 +647,13 @@ export function LiveMessagingView({
           {/* Message Input Bar */}
           <form
             onSubmit={handleSend}
-            className="p-3.5 border-t border-[#E2DDD2] bg-white flex items-center gap-2.5"
+            className="p-3.5 border-t border-[#E2DDD2] dark:border-[#1B3B31] bg-white dark:bg-[#0D231D] flex items-center gap-2.5"
           >
             <button
               type="button"
               onClick={() => setShowAttachmentModal(true)}
-              className="p-2.5 text-[#475569] hover:text-[#0C1A2E] hover:bg-slate-100 rounded-xl transition-colors"
+              disabled={!activePartnerUid}
+              className="p-2.5 text-[#475569] dark:text-[#9AB0A6] hover:text-[#0C1A2E] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer disabled:opacity-40"
               title="Attach Image, Video, PDF, or Document"
             >
               <Paperclip className="w-4 h-4" />
@@ -621,14 +663,21 @@ export function LiveMessagingView({
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Write a message..."
-              className="grow px-4 py-2.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl focus:outline-none focus:border-[#0C1A2E]"
+              disabled={!activePartnerUid}
+              data-testid="chat-message-input"
+              placeholder={
+                activePartnerProfile
+                  ? `Message ${activePartnerProfile.fullName}...`
+                  : 'Select a conversation...'
+              }
+              className="grow px-4 py-2.5 text-xs bg-[#F8FAFC] dark:bg-[#071713] border border-[#CBD5E1] dark:border-[#1B3B31] text-[#0F172A] dark:text-white rounded-xl focus:outline-none focus:border-[#0C1A2E]"
             />
 
             <button
               type="submit"
-              disabled={isSending || (!inputText.trim() && !stagedAttachment)}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0C1A2E] hover:bg-[#162946] text-[#E6C665] text-xs font-bold rounded-xl transition-colors disabled:opacity-40 shadow-xs"
+              disabled={!activePartnerUid || isSending || (!inputText.trim() && !stagedAttachment)}
+              data-testid="chat-send-btn"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0C1A2E] hover:bg-[#162946] text-[#E6C665] text-xs font-bold rounded-xl transition-colors disabled:opacity-40 shadow-xs cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               Send
@@ -648,7 +697,7 @@ export function LiveMessagingView({
               <button
                 type="button"
                 onClick={() => setShowAttachmentModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -658,6 +707,8 @@ export function LiveMessagingView({
               label="Select Image, Video, PDF, or Office Document"
               helpText="Supports PNG, JPG, WEBP, MP4, WEBM, PDF, DOCX (Max 15MB)"
               accept="image/*,video/mp4,video/webm,application/pdf,.doc,.docx"
+              storageFolder="chat"
+              destination="user"
               onFileUploaded={(meta) => {
                 setStagedAttachment(meta);
                 setShowAttachmentModal(false);
@@ -674,26 +725,27 @@ export function LiveMessagingView({
           <div className="bg-white rounded-2xl border border-[#E2DDD2] shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-[#E2DDD2] pb-3">
               <h3 className="font-serif font-bold text-base text-[#0C1A2E]">
-                Forward Message to Student
+                Forward Message to Account
               </h3>
               <button
                 type="button"
                 onClick={() => setForwardingMessage(null)}
-                className="text-slate-400 hover:text-slate-700"
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="max-h-60 overflow-y-auto divide-y divide-[#E2DDD2]">
-              {students.map((st) => (
+              {chatPartners.map((partner) => (
                 <button
-                  key={st.uid}
+                  key={partner.uid}
                   type="button"
-                  onClick={() => handleForwardTo(st.uid)}
-                  className="w-full py-2.5 px-3 text-left hover:bg-slate-50 flex items-center justify-between text-xs font-semibold text-[#0C1A2E]"
+                  onClick={() => handleForwardTo(partner.uid)}
+                  className="w-full py-2.5 px-3 text-left hover:bg-slate-50 flex items-center justify-between text-xs font-semibold text-[#0C1A2E] cursor-pointer"
                 >
                   <span>
-                    {st.fullName} ({st.studentId})
+                    {partner.fullName} (
+                    {partner.role === 'admin' ? 'Union Admin' : partner.studentId})
                   </span>
                   <Forward className="w-3.5 h-3.5 text-[#9A7515]" />
                 </button>

@@ -1128,17 +1128,31 @@ export function applyPortalMutation(
     return { ok: true, state };
   }
 
-  // 12. CHAT MESSAGES
+  // 12. CHAT MESSAGES (1-to-1 personal chat across all active accounts)
   if (action === 'SEND_CHAT_MESSAGE') {
-    const requestedRecipientId = String(body.recipientId || (actor.role === 'admin' ? '' : 'admin_super'));
-    if (actor.role !== 'admin' && requestedRecipientId !== 'admin_super') {
+    const requestedRecipientId = String(body.recipientId || '').trim();
+    if (!requestedRecipientId) {
+      return { ok: false, statusCode: 400, error: 'Recipient account is required for personal chat.' };
+    }
+    if (requestedRecipientId === actor.uid) {
       return {
         ok: false,
-        statusCode: 403,
-        error: 'Forbidden: Members can only send live chat messages to Union Administration (admin_super).',
+        statusCode: 400,
+        error: 'Cannot send a personal chat message to your own account.',
       };
     }
-    const recipientId = actor.role === 'admin' ? requestedRecipientId : 'admin_super';
+    const recipientUser = state.users.find(
+      (u) => u.uid === requestedRecipientId && u.status === 'active'
+    );
+    if (!recipientUser) {
+      return {
+        ok: false,
+        statusCode: 404,
+        error: 'Recipient account not found or currently inactive.',
+      };
+    }
+
+    const recipientId = recipientUser.uid;
     const text = sanitizeText(String(body.text || ''), 2000);
     const attachmentUrl = sanitizeMediaUrl(body.attachmentUrl, '');
     const attachmentName = sanitizeText(String(body.attachmentName || ''), 150);
@@ -1151,7 +1165,7 @@ export function applyPortalMutation(
     if (!text && !attachmentUrl) {
       return { ok: false, statusCode: 400, error: 'Cannot send empty message.' };
     }
-    const conversationId = actor.role === 'admin' ? recipientId : actor.uid;
+    const conversationId = [actor.uid, recipientId].sort().join('__');
     if (!state.chatMessages) state.chatMessages = [];
 
     const newMsg: ChatMessage = {
@@ -1192,7 +1206,7 @@ export function applyPortalMutation(
         actorId: actor.uid,
         actorName: actor.fullName,
         actionType: 'LIVE_MESSAGE_SENT',
-        details: `Sent live message to ${recipientId}`,
+        details: `Sent live message to ${recipientUser.fullName} (${recipientId})`,
         targetId: conversationId,
         createdAt: now,
       })
@@ -1201,10 +1215,19 @@ export function applyPortalMutation(
   }
 
   if (action === 'MARK_CHAT_READ') {
-    const conversationId = String(body.conversationId || '');
-    for (const m of state.chatMessages || []) {
-      if (m.conversationId === conversationId && (actor.role === 'admin' || m.recipientId === actor.uid)) {
-        m.read = true;
+    const peerId = String(body.peerId || body.conversationId || '').trim();
+    const pairConversationId = peerId ? [actor.uid, peerId].sort().join('__') : '';
+    if (peerId) {
+      for (const m of state.chatMessages || []) {
+        if (
+          !m.read &&
+          m.recipientId === actor.uid &&
+          (m.senderId === peerId ||
+            m.conversationId === peerId ||
+            m.conversationId === pairConversationId)
+        ) {
+          m.read = true;
+        }
       }
     }
     return { ok: true, state };
