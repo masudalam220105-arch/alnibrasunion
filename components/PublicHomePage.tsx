@@ -16,13 +16,10 @@ import {
   Users,
   Award,
   Image as ImageIcon,
-  Clock,
   X,
   Menu,
   ShieldCheck,
   Search,
-  CalendarCheck2,
-  Database,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -47,8 +44,7 @@ import { OfficialLogo } from './OfficialBrandingView';
 import { FloatingThemeToggle } from './ThemeToggle';
 import PhotoLightboxModal from './PhotoLightboxModal';
 import { SafeImage } from './SafeImage';
-import { filterVisibleContent, getIndiaDateISO } from '@/lib/portal-logic';
-import { SelectWithCustom } from './SelectWithCustom';
+import { filterVisibleContent } from '@/lib/portal-logic';
 import {
   searchGlobalPortalContent,
   type GlobalSearchFilter,
@@ -87,29 +83,6 @@ interface PublicHomePageProps {
   currentUser: UserProfile | null;
   onOpenLogin: () => void;
   onEnterPortal: () => void;
-  onBookAppointment?: (payload: {
-    fullName: string;
-    email: string;
-    phone: string;
-    department: string;
-    preferredDate: string;
-    preferredTime: string;
-    purpose: string;
-    notes?: string;
-  }) => Promise<{
-    ok: boolean;
-    appointment?: {
-      id: string;
-      fullName: string;
-      department: string;
-      preferredDate: string;
-      preferredTime: string;
-      status: string;
-    };
-    savedToSupabase: boolean;
-    schemaMissing?: boolean;
-    error?: string;
-  }>;
   onSubmitPublicContact: (payload: {
     senderName: string;
     senderEmail: string;
@@ -171,7 +144,6 @@ export function PublicHomePage({
   currentUser,
   onOpenLogin,
   onEnterPortal,
-  onBookAppointment,
   onSubmitPublicContact,
 }: PublicHomePageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -313,83 +285,6 @@ export function PublicHomePage({
 
   // Photo Lightbox Modal State
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-
-  // Appointment Booking Form State
-  const [apptFullName, setApptFullName] = useState('');
-  const [apptEmail, setApptEmail] = useState('');
-  const [apptPhone, setApptPhone] = useState('');
-  const [apptDepartment, setApptDepartment] = useState('Union Secretariat');
-  const [apptDate, setApptDate] = useState(() => getIndiaDateISO());
-  const [apptTime, setApptTime] = useState('11:00 AM');
-  const [apptPurpose, setApptPurpose] = useState('');
-  const [apptNotes, setApptNotes] = useState('');
-  const [apptError, setApptError] = useState<string | null>(null);
-  const [submittingAppt, setSubmittingAppt] = useState(false);
-  const [bookedApptReceipt, setBookedApptReceipt] = useState<{
-    id: string;
-    fullName: string;
-    department: string;
-    preferredDate: string;
-    preferredTime: string;
-    savedToSupabase: boolean;
-    schemaMissing?: boolean;
-  } | null>(null);
-
-  const handleAppointmentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!onBookAppointment) return;
-    setApptError(null);
-    setBookedApptReceipt(null);
-
-    if (
-      apptFullName.trim().length < 2 ||
-      !apptEmail.includes('@') ||
-      apptPhone.trim().length < 6 ||
-      !apptDate ||
-      !apptTime ||
-      apptPurpose.trim().length < 3
-    ) {
-      setApptError(
-        'Please complete Full Name, Email Address, Phone Number, Preferred Date/Time, and Appointment Purpose.'
-      );
-      return;
-    }
-
-    setSubmittingAppt(true);
-    try {
-      const res = await onBookAppointment({
-        fullName: apptFullName.trim(),
-        email: apptEmail.trim(),
-        phone: apptPhone.trim(),
-        department: apptDepartment,
-        preferredDate: apptDate,
-        preferredTime: apptTime,
-        purpose: apptPurpose.trim(),
-        notes: apptNotes.trim() || undefined,
-      });
-
-      if (res.ok && res.appointment) {
-        setBookedApptReceipt({
-          id: res.appointment.id,
-          fullName: res.appointment.fullName,
-          department: res.appointment.department,
-          preferredDate: res.appointment.preferredDate,
-          preferredTime: res.appointment.preferredTime,
-          savedToSupabase: res.savedToSupabase,
-          schemaMissing: res.schemaMissing,
-        });
-        setApptFullName('');
-        setApptEmail('');
-        setApptPhone('');
-        setApptPurpose('');
-        setApptNotes('');
-      } else {
-        setApptError(res.error || 'Could not complete appointment booking.');
-      }
-    } finally {
-      setSubmittingAppt(false);
-    }
-  };
 
   // Contact Form State
   const [contactName, setContactName] = useState('');
@@ -566,7 +461,6 @@ export function PublicHomePage({
               { label: 'Announcements', href: '#announcements' },
               { label: 'Gallery', href: '#gallery' },
               { label: 'Committee', href: '#committee' },
-              { label: 'Appointments', href: '#appointments' },
               { label: 'Contact', href: '#contact' },
             ].map((item) => (
               <a
@@ -776,7 +670,6 @@ export function PublicHomePage({
                 { label: 'Announcements', href: '#announcements' },
                 { label: 'Public Photo Gallery', href: '#gallery' },
                 { label: 'Committee Members', href: '#committee' },
-                { label: 'Book Appointment', href: '#appointments' },
                 { label: 'Contact Us', href: '#contact' },
               ].map((nav) => (
                 <a
@@ -872,12 +765,36 @@ export function PublicHomePage({
                   )}
                 </MagneticAction>
 
-                <a
-                  href={activeSlide.ctaLink && activeSlide.ctaLink !== '#events' ? activeSlide.ctaLink : '#notices'}
-                  className="hover-shine press-scale inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/25 text-sm font-semibold backdrop-blur-xs transition-all hover:-translate-y-0.5"
-                >
-                  <span>{activeSlide.ctaText || 'View Latest Updates'}</span>
-                </a>
+                {(() => {
+                  const targetHref = activeSlide.ctaLink || activeSlide.ctaHref || '#notices';
+                  const ctaLabel = activeSlide.ctaText || 'View Latest Updates';
+                  const isLoginCta =
+                    targetHref === '#login' || /login/i.test(ctaLabel);
+                  if (isLoginCta) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={currentUser ? onEnterPortal : onOpenLogin}
+                        data-testid="hero-member-login-btn"
+                        className="hover-shine press-scale inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/15 hover:bg-white/25 text-white border border-white/30 text-sm font-semibold transition-all cursor-pointer"
+                      >
+                        <span>
+                          {currentUser
+                            ? `Open ${currentUser.role === 'admin' ? 'Admin' : 'Student'} Panel`
+                            : ctaLabel}
+                        </span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <a
+                      href={targetHref !== '#events' ? targetHref : '#notices'}
+                      className="hover-shine press-scale inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/25 text-sm font-semibold transition-all hover:-translate-y-0.5"
+                    >
+                      <span>{ctaLabel}</span>
+                    </a>
+                  );
+                })()}
               </div>
             </motion.div>
           </AnimatePresence>
@@ -1315,231 +1232,6 @@ export function PublicHomePage({
             </section>
           </SectionReveal>
         )}
-
-        {/* 7. APPOINTMENT BOOKING FORM (Saved to Supabase public.appointments) */}
-        <section
-          id="appointments"
-          className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl p-6 sm:p-8 shadow-xs"
-        >
-          <div className="lg:col-span-5 space-y-5">
-            <div>
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#064E3B] dark:text-[#D4AF37]">
-                <CalendarCheck2 className="w-3.5 h-3.5" />
-                <span>Secretariat Appointments</span>
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#17221F] dark:text-[#F0F5F2] mt-1">
-                Book an Appointment
-              </h2>
-              <p className="text-xs sm:text-sm text-[#718078] dark:text-[#9AB0A6] mt-1 leading-relaxed">
-                Schedule an academic advising, union clearance, financial receipt verification, or administrative consultation slot. Every booking is saved directly to the Al-Nibras Supabase backend.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[#F8FAF7] dark:bg-[#071713] border border-[#E5EAE6] dark:border-[#1B3B31] space-y-2.5 text-xs">
-              <div className="flex items-center gap-2 font-bold text-[#064E3B] dark:text-[#D4AF37]">
-                <Clock className="w-4 h-4" />
-                <span>Consultation Hours</span>
-              </div>
-              <p className="text-[#718078] dark:text-[#9AB0A6]">
-                {homepageConfig?.officeHours || 'Monday – Saturday · 9:30 AM to 5:00 PM IST'}
-              </p>
-              <div className="pt-2 border-t border-[#E5EAE6] dark:border-[#1B3B31] flex items-center gap-2 text-[11px] text-[#718078] dark:text-[#9AB0A6]">
-                <Database className="w-3.5 h-3.5 text-[#064E3B] dark:text-[#D4AF37] shrink-0" />
-                <span>Synced with Supabase Appointments Database</span>
-              </div>
-            </div>
-          </div>
-
-          <form
-            onSubmit={handleAppointmentSubmit}
-            data-testid="appointment-booking-form"
-            className="lg:col-span-7 space-y-4"
-            noValidate
-          >
-            {apptError && (
-              <motion.div
-                key={apptError}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                role="alert"
-                className="animate-subtle-shake p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-200 font-medium"
-              >
-                {apptError}
-              </motion.div>
-            )}
-
-            {bookedApptReceipt && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                data-testid="appointment-confirmation-card"
-                className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-100 space-y-1.5"
-              >
-                <div className="flex items-center gap-2 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37] shrink-0" />
-                  <span>
-                    Appointment Confirmed Request Submitted ({bookedApptReceipt.preferredDate} ·{' '}
-                    {bookedApptReceipt.preferredTime})
-                  </span>
-                </div>
-                <p className="text-[11px] opacity-90">
-                  Reference ID: <span className="font-mono font-bold">{bookedApptReceipt.id}</span> · Department:{' '}
-                  {bookedApptReceipt.department}
-                </p>
-                {bookedApptReceipt.savedToSupabase ? (
-                  <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                    Synced to Supabase appointments table.
-                  </p>
-                ) : bookedApptReceipt.schemaMissing ? (
-                  <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                    Saved in portal queue. Run <code className="font-mono">lib/supabase-schema.sql</code> in Supabase SQL Editor to enable remote table persistence.
-                  </p>
-                ) : null}
-              </motion.div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] mb-1">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  value={apptFullName}
-                  onChange={(e) => setApptFullName(e.target.value)}
-                  placeholder="Enter your full name"
-                  data-testid="appointment-full-name"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] mb-1">
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  value={apptEmail}
-                  onChange={(e) => setApptEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  data-testid="appointment-email"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] mb-1">
-                  Phone Number *
-                </label>
-                <input
-                  type="tel"
-                  value={apptPhone}
-                  onChange={(e) => setApptPhone(e.target.value)}
-                  placeholder="+91 98470 00000"
-                  data-testid="appointment-phone"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-                  required
-                />
-              </div>
-              <div>
-                <SelectWithCustom
-                  id="appointment-department-select"
-                  label="Department / Desk *"
-                  value={apptDepartment}
-                  onChange={(val) => setApptDepartment(val)}
-                  options={[
-                    'Union Secretariat',
-                    'Academic Council',
-                    'Finance & Treasury',
-                    'Cultural & Literary Wing',
-                    'Admissions & Counseling',
-                  ]}
-                  customPlaceholder="Type custom department or desk..."
-                  data-testid="appointment-department"
-                  selectClassName="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] mb-1">
-                  Preferred Date *
-                </label>
-                <input
-                  type="date"
-                  value={apptDate}
-                  onChange={(e) => setApptDate(e.target.value)}
-                  data-testid="appointment-date"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-                  required
-                />
-              </div>
-              <div>
-                <SelectWithCustom
-                  id="appointment-time-select"
-                  label="Preferred Time Slot (IST) *"
-                  value={apptTime}
-                  onChange={(val) => setApptTime(val)}
-                  options={[
-                    '09:30 AM',
-                    '11:00 AM',
-                    '02:00 PM',
-                    '03:30 PM',
-                    '04:30 PM',
-                  ]}
-                  customPlaceholder="e.g., 10:15 AM IST"
-                  data-testid="appointment-time"
-                  selectClassName="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] mb-1">
-                Purpose of Appointment *
-              </label>
-              <input
-                type="text"
-                value={apptPurpose}
-                onChange={(e) => setApptPurpose(e.target.value)}
-                placeholder="e.g., Certificate verification, Fee receipt inquiry, Academic mentorship"
-                data-testid="appointment-purpose"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#17221F] dark:text-[#F0F5F2] mb-1">
-                Additional Notes (Optional)
-              </label>
-              <textarea
-                rows={2}
-                value={apptNotes}
-                onChange={(e) => setApptNotes(e.target.value)}
-                placeholder="Share any student ID, roll number, or context before your visit..."
-                data-testid="appointment-notes"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5EAE6] dark:border-[#1B3B31] bg-[#F8FAF7] dark:bg-[#071713] text-sm text-[#17221F] dark:text-[#F0F5F2] focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37] focus:ring-2 focus:ring-[#064E3B]/15 dark:focus:ring-[#D4AF37]/20 transition-all"
-              />
-            </div>
-
-            <RippleButton
-              type="submit"
-              loading={submittingAppt}
-              data-testid="appointment-submit-btn"
-              className="group inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#064E3B] hover:bg-[#0B3D32] text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors disabled:opacity-50"
-            >
-              {!submittingAppt && <CalendarCheck2 className="w-3.5 h-3.5 text-[#D4AF37] group-hover:scale-110 transition-transform" />}
-              <span>{submittingAppt ? 'Booking Appointment...' : 'Book Appointment'}</span>
-            </RippleButton>
-          </form>
-        </section>
 
         {/* 10. CONTACT INFORMATION & MESSAGE FORM */}
         <section

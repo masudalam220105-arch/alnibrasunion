@@ -116,7 +116,7 @@ export function AdminHomepageManagement({
       { id: 'contact', label: 'Contact & Inquiry Desk', visible: true, order: 5 },
     ];
     return base
-      .filter((s) => s.id !== 'events' && s.id !== 'videos')
+      .filter((s) => s.id !== 'events' && s.id !== 'videos' && s.id !== 'appointments')
       .map((s, i) => ({ ...s, order: i + 1 }));
   });
   const [saving, setSaving] = useState(false);

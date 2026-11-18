@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Cinzel, Montserrat, Playfair_Display, Poppins } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { FloatingThemeFab } from '@/components/ThemeToggle';
 import { PortalMotionConfig } from '@/components/MotionPrimitives';
 
 const cinzel = Cinzel({
@@ -64,10 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className="bg-[#F8FAF7] dark:bg-[#071713] text-[#17221F] dark:text-[#F0F5F2] font-sans antialiased selection:bg-[#D4AF37]/25 selection:text-[#064E3B] dark:selection:text-[#D4AF37]"
       >
         <ThemeProvider>
-          <PortalMotionConfig>
-            {children}
-            <FloatingThemeFab />
-          </PortalMotionConfig>
+          <PortalMotionConfig>{children}</PortalMotionConfig>
         </ThemeProvider>
       </body>
     </html>

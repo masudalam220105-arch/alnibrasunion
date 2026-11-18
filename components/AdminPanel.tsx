@@ -46,25 +46,17 @@ import {
   ThumbsUp,
   Layers,
   Lock,
-  CalendarCheck2,
-  Clock,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ALNIBRAS_EASE,
-  AmbientBackground,
-  AnimatedCounter,
-  InteractiveCard,
   RippleButton,
-  StaggerGrid,
-  StaggerItem,
 } from './MotionPrimitives';
 import { LiveDateTimeClock } from './LiveDateTimeClock';
 import { SafeImage } from './SafeImage';
 import { OfficialLogo, OfficialBrandingView } from './OfficialBrandingView';
-import ThemeToggle from './ThemeToggle';
 import PhotoLightboxModal from './PhotoLightboxModal';
-import AdminExportDataView from './AdminExportDataView';
 import PortalHeaderSearch from './PortalHeaderSearch';
 import {
   AdminSlideshowManager,
@@ -73,7 +65,6 @@ import {
   AdminDatabaseBackupResetCard,
   SupabaseRlsDiagnosticCard,
 } from './AdminUpgradeModules';
-import { AdminStatsChart } from './AdminStatsChart';
 import { AdminActivityLogsView } from './AdminActivityLogsView';
 import { AdminFineManagement } from './AdminFineManagement';
 import { ChatWindow } from './ChatWindow';
@@ -90,8 +81,32 @@ import {
   type FinancialSubTab,
 } from './UnionFinancialManagement';
 import { AdminHomepageManagement } from './AdminHomepageManagement';
-import CertificatePreviewModal, { downloadCertificateAsPdf } from './CertificateModalAndPdf';
+import { downloadCertificateAsPdf } from './CertificateModalAndPdf';
 import { SelectWithCustom } from './SelectWithCustom';
+
+const AdminExportDataView = dynamic(() => import('./AdminExportDataView'), {
+  ssr: false,
+  loading: () => (
+    <div className="p-8 text-xs text-slate-500 dark:text-[#9AB0A6]">
+      Loading spreadsheet export tools...
+    </div>
+  ),
+});
+
+const AdminStatsChart = dynamic(
+  () => import('./AdminStatsChart').then((m) => m.AdminStatsChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 rounded-xl border border-slate-200 dark:border-[#1B3B31] bg-white dark:bg-[#0D231D]" />
+    ),
+  }
+);
+
+const CertificatePreviewModal = dynamic(
+  () => import('./CertificateModalAndPdf'),
+  { ssr: false, loading: () => null }
+);
 import {
   computeDashboardMetrics,
   countUnreadNotifications,
@@ -134,7 +149,6 @@ export type AdminTab =
   | 'feedback'
   | 'exportData'
   | 'liveMessages'
-  | 'appointments'
   | 'messages'
   | 'notifications'
   | 'financialDashboard'
@@ -329,6 +343,19 @@ export function AdminPanel({
   });
 
   const unreadNotifCount = countUnreadNotifications(state.notifications, currentUser.uid);
+
+  const totalUnionIncome = (state.income || []).reduce(
+    (sum, item) => sum + (Number(item.amount) || 0),
+    0
+  );
+  const totalUnionExpenses = (state.expenses || []).reduce(
+    (sum, item) => sum + (Number(item.amount) || 0),
+    0
+  );
+  const currentUnionBalance = totalUnionIncome - totalUnionExpenses;
+  const unreadChatCount = (state.chatMessages || []).filter(
+    (m) => m.recipientId === currentUser.uid && !m.read
+  ).length;
 
   const filteredStudentList = filterStudents(
     state.users,
@@ -667,7 +694,6 @@ export function AdminPanel({
       items: [
         { id: 'feedback', label: 'Feedback', icon: ThumbsUp },
         { id: 'liveMessages', label: 'Messages & Chat', icon: MessageSquareCode },
-        { id: 'appointments', label: 'Appointments Desk', icon: CalendarCheck2 },
         { id: 'messages', label: 'Public Inquiries', icon: MessageSquare },
         { id: 'notifications', label: 'Notifications', icon: Bell },
       ],
@@ -859,12 +885,6 @@ export function AdminPanel({
                 }
               }}
             />
-            <span className="sm:hidden">
-              <ThemeToggle compact />
-            </span>
-            <span className="hidden sm:inline-flex">
-              <ThemeToggle />
-            </span>
 
             {/* Notification Bell */}
             <div className="relative">
@@ -997,27 +1017,23 @@ export function AdminPanel({
           </div>
         </header>
 
-        {/* Main Viewport Content with Smooth Tab Transitions */}
+        {/* Main Viewport Content */}
         <main className="p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.16, ease: ALNIBRAS_EASE }}
-              className="space-y-8"
-            >
+          <div className="space-y-8">
           {/* 1. DASHBOARD */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-6">
+              {/* Top Command Title & Quick Actions */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-200 dark:border-[#1B3B31]">
                 <div>
-                  <h1 className="text-2xl lg:text-3xl font-serif-display font-bold text-[#0B192C] dark:text-white">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-[#064E3B] dark:text-[#D4AF37]">
+                    Directorate Command Center
+                  </p>
+                  <h1 className="text-2xl lg:text-3xl font-serif-display font-bold text-[#0B192C] dark:text-[#F0F5F2] mt-0.5">
                     Executive Union Overview
                   </h1>
-                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-0.5">
-                    Welcome back, {currentUser.fullName} ({currentUser.username}) ·{' '}
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1">
+                    Signed in as {currentUser.fullName} (@{currentUser.username}) ·{' '}
                     {state.settings.academicSession}
                   </p>
                 </div>
@@ -1029,17 +1045,17 @@ export function AdminPanel({
                       setActiveTab('students');
                       setShowCreateStudentModal(true);
                     }}
-                    className="hover-lift px-3.5 py-2 bg-[#0B192C] hover:bg-[#162944] text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="px-3.5 py-2 bg-[#064E3B] hover:bg-[#0B3D32] text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5 text-[#C5A059]" />
-                    <span>New Student Account</span>
+                    <Plus className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>New Student</span>
                   </RippleButton>
                   <RippleButton
                     onClick={() => setActiveTab('financialDashboard')}
-                    className="hover-lift px-3.5 py-2 bg-[#C5A059] hover:bg-[#d4b06a] text-[#0B192C] text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="px-3.5 py-2 bg-[#D4AF37] hover:bg-[#c29d2f] text-[#071713] text-xs font-bold rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <IndianRupee className="w-3.5 h-3.5" />
-                    <span>Financial Ledger (₹)</span>
+                    <span>Financial Ledger</span>
                   </RippleButton>
                   <RippleButton
                     onClick={() => {
@@ -1054,94 +1070,113 @@ export function AdminPanel({
                       setActiveTab('announcements');
                       setShowAnnModal(true);
                     }}
-                    className="hover-lift px-3.5 py-2 bg-white dark:bg-[#0D231D] hover:bg-slate-50 dark:hover:bg-[#112A22] text-[#0B192C] dark:text-[#F0F5F2] border border-slate-300 dark:border-[#1B3B31] text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="px-3.5 py-2 bg-white dark:bg-[#0D231D] hover:bg-slate-50 dark:hover:bg-[#112A22] text-[#0B192C] dark:text-[#F0F5F2] border border-slate-300 dark:border-[#1B3B31] text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Megaphone className="w-3.5 h-3.5 text-[#B48A3E] dark:text-[#D4AF37]" />
+                    <Megaphone className="w-3.5 h-3.5 text-[#064E3B] dark:text-[#D4AF37]" />
                     <span>Publish Announcement</span>
                   </RippleButton>
                 </div>
               </div>
 
-              {/* Executive Summary Stats Widget: Live Day/Date/Time, Active Users, Calendar & Inquiries */}
+              {/* Architectural Pulse Banner (Single Surface + Hairline Dividers, Zero Nested Card Boxes) */}
               <div
                 data-testid="admin-summary-stats-widget"
-                className="relative overflow-hidden p-5 bg-[#0B192C] text-white rounded-xl border border-[#C5A059]/35 shadow-sm"
+                className="bg-gradient-to-br from-[#064E3B] via-[#083B2E] to-[#0B192C] text-white rounded-xl border border-[#D4AF37]/30 overflow-hidden shadow-sm"
               >
-                <AmbientBackground />
-                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-white/10">
+                <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#C5A059]">
-                      Executive Summary Stats Widget
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#D4AF37]">
+                      Institutional Pulse
                     </p>
                     <h2 className="text-base font-serif-display font-bold text-white">
-                      Real-Time Institutional Pulse &amp; Operational Readiness
+                      Class Union Status &amp; Financial Treasury
                     </h2>
                   </div>
                   <LiveDateTimeClock variant="banner" />
                 </div>
 
-                <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Metric 1: Total Active Users */}
-                  <div className="hover-lift p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-300">
-                        Total Active Users
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/10">
+                  <div className="p-5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
+                        Active Scholars
                       </p>
-                      <p className="text-3xl font-serif-display font-bold text-[#C5A059] font-mono-tabular mt-1">
-                        <AnimatedCounter value={metrics.activeAccounts} />
+                      <p className="text-2xl lg:text-3xl font-serif-display font-bold text-[#D4AF37] tabular-nums mt-1">
+                        {metrics.activeAccounts}
                       </p>
-                      <p className="text-[11px] text-slate-400 mt-1 font-mono-tabular">
-                        {metrics.totalStudents} Scholars · 1 Super Admin
+                      <p className="text-[11px] text-white/70 mt-1 tabular-nums truncate">
+                        {metrics.totalStudents} Students · 1 Admin
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveTab('students')}
-                      className="press-scale px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors cursor-pointer shrink-0"
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       Directory
                     </button>
                   </div>
 
-                  {/* Metric 2: Published Notices & Calendar Schedule */}
-                  <div className="hover-lift p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-300">
-                        Notices &amp; Calendar Dates
+                  <div className="p-5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
+                        Treasury Balance
                       </p>
-                      <p className="text-3xl font-serif-display font-bold text-white font-mono-tabular mt-1">
-                        <AnimatedCounter value={metrics.publishedNoticesCount} />
+                      <p className="text-2xl lg:text-3xl font-serif-display font-bold text-white tabular-nums mt-1 truncate">
+                        {formatINR(currentUnionBalance)}
                       </p>
-                      <p className="text-[11px] text-slate-400 mt-1 font-mono-tabular">
-                        {metrics.publishedNoticesCount} Published Notices · {metrics.upcomingCalendarEventsCount} Calendar Dates
+                      <p className="text-[11px] text-white/70 mt-1 tabular-nums truncate">
+                        In {formatINR(totalUnionIncome)} · Out {formatINR(totalUnionExpenses)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('financialDashboard')}
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      Ledger
+                    </button>
+                  </div>
+
+                  <div className="p-5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
+                        Notices &amp; Dates
+                      </p>
+                      <p className="text-2xl lg:text-3xl font-serif-display font-bold text-white tabular-nums mt-1">
+                        {metrics.publishedNoticesCount}
+                      </p>
+                      <p className="text-[11px] text-white/70 mt-1 tabular-nums truncate">
+                        {metrics.upcomingCalendarEventsCount} Scheduled Calendar Dates
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveTab('calendar')}
-                      className="press-scale px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors cursor-pointer shrink-0"
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       Calendar
                     </button>
                   </div>
 
-                  {/* Metric 3: Unresolved Public Inquiries */}
-                  <div className="hover-lift p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-300">
-                        Unresolved Public Inquiries
+                  <div className="p-5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
+                        Unread Inbox
                       </p>
-                      <p className="text-3xl font-serif-display font-bold text-amber-400 font-mono-tabular mt-1">
-                        <AnimatedCounter value={metrics.unresolvedInquiriesCount} />
+                      <p className="text-2xl lg:text-3xl font-serif-display font-bold text-amber-300 tabular-nums mt-1">
+                        {metrics.unresolvedInquiriesCount + unreadChatCount}
                       </p>
-                      <p className="text-[11px] text-slate-400 mt-1 font-mono-tabular">
-                        Awaiting Secretariat Reply ({state.messages.length} total)
+                      <p className="text-[11px] text-white/70 mt-1 tabular-nums truncate">
+                        {metrics.unresolvedInquiriesCount} Inquiries · {unreadChatCount} Chat
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setActiveTab('messages')}
-                      className="press-scale px-3 py-1.5 rounded-lg bg-[#C5A059] hover:bg-[#d4b06a] text-[#0B192C] text-xs font-bold transition-colors cursor-pointer shrink-0"
+                      onClick={() =>
+                        setActiveTab(unreadChatCount > 0 ? 'liveMessages' : 'messages')
+                      }
+                      className="px-3 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#c29d2f] text-[#071713] text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       Respond
                     </button>
@@ -1149,170 +1184,160 @@ export function AdminPanel({
                 </div>
               </div>
 
-              {/* Primary 9-Metric KPI Grid (All Currency in INR ₹) */}
-              <StaggerGrid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('students')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-[#C5A059]/60 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Total Students</p>
-                    <p className="text-2xl font-serif-display font-bold text-[#0B192C] dark:text-white font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.totalStudents} />
+              {/* Balanced 4x2 KPI Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('students')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Total Students
                     </p>
-                    <p className="text-[11px] text-slate-400 dark:text-[#9AB0A6] mt-0.5 font-mono-tabular">
-                      Enrolled Scholars
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
+                    <Users className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-[#0B192C] dark:text-white tabular-nums mt-2">
+                    {metrics.totalStudents}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {metrics.activeAccounts} Active · {metrics.inactiveAccounts} Inactive
+                  </p>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('students')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-[#C5A059]/60 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Active Accounts</p>
-                    <p className="text-2xl font-serif-display font-bold text-emerald-700 dark:text-emerald-400 font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.activeAccounts} />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('fines')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-amber-500/60 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Unpaid Fines
                     </p>
-                    <p className="text-[11px] text-slate-400 dark:text-[#9AB0A6] mt-0.5 font-mono-tabular">
-                      {metrics.inactiveAccounts} Inactive
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
+                    <Receipt className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-amber-700 dark:text-amber-400 tabular-nums mt-2">
+                    {formatINR(metrics.totalUnpaidFineAmount)}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {metrics.totalUnpaidFines} Pending fine records
+                  </p>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('fines')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-amber-300 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Unpaid Fines (INR)</p>
-                    <p className="text-2xl font-serif-display font-bold text-amber-700 dark:text-amber-400 font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.totalUnpaidFines} />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('fines')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-emerald-500/60 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Settled Fines
                     </p>
-                    <p className="text-[11px] text-amber-600 dark:text-amber-300 mt-0.5 font-mono-tabular">
-                      {formatINR(metrics.totalUnpaidFineAmount)} Outstanding
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
+                    <IndianRupee className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-emerald-700 dark:text-emerald-400 tabular-nums mt-2">
+                    {formatINR(metrics.totalPaidFineAmount)}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {metrics.totalPaidFines} Cleared payments
+                  </p>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('fines')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-emerald-300 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Paid Fines (INR)</p>
-                    <p className="text-2xl font-serif-display font-bold text-emerald-700 dark:text-emerald-400 font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.totalPaidFines} />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('programResults')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Program Results
                     </p>
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-300 mt-0.5 font-mono-tabular">
-                      {formatINR(metrics.totalPaidFineAmount)} Settled
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
+                    <Trophy className="w-4 h-4 text-[#B48A3E] dark:text-[#D4AF37]" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-[#B48A3E] dark:text-[#D4AF37] tabular-nums mt-2">
+                    {metrics.publishedProgramResultsCount}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {metrics.upcomingProgramsCount} Upcoming · {(state.certificates || []).length} Certificates
+                  </p>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('programResults')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-[#C5A059]/60 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Upcoming Programs</p>
-                    <p className="text-2xl font-serif-display font-bold text-[#0B192C] dark:text-white font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.upcomingProgramsCount} />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('committee')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Committee Roster
                     </p>
-                    <p className="text-[11px] text-slate-400 dark:text-[#9AB0A6] mt-0.5 font-mono-tabular">
-                      Competitions &amp; Programs
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
+                    <Layers className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-[#0B192C] dark:text-white tabular-nums mt-2">
+                    {(state.committeeMembers || []).length}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1">
+                    Core &amp; Sub Committee Members
+                  </p>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('programResults')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-[#C5A059]/60 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Published Results</p>
-                    <p className="text-2xl font-serif-display font-bold text-[#B48A3E] dark:text-[#D4AF37] font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.publishedProgramResultsCount} />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('liveMessages')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-sky-500/60 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Direct Messages
                     </p>
-                    <p className="text-[11px] text-slate-400 dark:text-[#9AB0A6] mt-0.5 font-mono-tabular">
-                      Recorded Competitions
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
+                    <MessageSquareCode className="w-4 h-4 text-sky-700 dark:text-sky-400" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-sky-700 dark:text-sky-400 tabular-nums mt-2">
+                    {unreadChatCount} Unread
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {(state.chatMessages || []).length} Total Chat Records
+                  </p>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('messages')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-blue-300 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Unread Messages</p>
-                    <p className="text-2xl font-serif-display font-bold text-blue-700 dark:text-sky-400 font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.unreadMessagesCount} />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('announcements')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Announcements &amp; Notices
                     </p>
-                    <p className="text-[11px] text-blue-600 dark:text-sky-300 mt-0.5 font-mono-tabular">
-                      Student Inquiries &amp; Chat
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
+                    <Megaphone className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-[#0B192C] dark:text-white tabular-nums mt-2">
+                    {metrics.publishedAnnouncementsCount + metrics.publishedNoticesCount}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {metrics.publishedAnnouncementsCount} Ann. · {metrics.publishedNoticesCount} Notices
+                  </p>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('calendar')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-[#C5A059]/60 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Calendar Dates</p>
-                    <p className="text-2xl font-serif-display font-bold text-[#0B192C] dark:text-white font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.upcomingCalendarEventsCount} />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('accountChangeHistory')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">
+                      Account Audit Events
                     </p>
-                    <p className="text-[11px] text-slate-400 dark:text-[#9AB0A6] mt-0.5 font-mono-tabular">
-                      Scheduled in Union
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
-
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('accountChangeHistory')}
-                    className="group p-4 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl hover:border-[#C5A059]/60 transition-colors cursor-pointer"
-                  >
-                    <p className="text-[11px] font-semibold text-slate-500 dark:text-[#9AB0A6] uppercase tracking-wider">Account Changes</p>
-                    <p className="text-2xl font-serif-display font-bold text-purple-700 dark:text-purple-400 font-mono-tabular mt-1">
-                      <AnimatedCounter value={metrics.recentAccountChangesCount} />
-                    </p>
-                    <p className="text-[11px] text-purple-600 dark:text-purple-300 mt-0.5 font-mono-tabular">
-                      Recent Resets / Edits
-                    </p>
-                  </InteractiveCard>
-                </StaggerItem>
-              </StaggerGrid>
+                    <KeyRound className="w-4 h-4 text-purple-700 dark:text-purple-400" />
+                  </div>
+                  <p className="text-2xl font-serif-display font-bold text-purple-700 dark:text-purple-400 tabular-nums mt-2">
+                    {metrics.recentAccountChangesCount}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#9AB0A6] mt-1">
+                    Password &amp; Profile Changes
+                  </p>
+                </button>
+              </div>
 
               {/* Chart.js Statistics Section */}
               <AdminStatsChart
@@ -1323,58 +1348,58 @@ export function AdminPanel({
                 publishedNotices={metrics.publishedNoticesCount}
               />
 
-              {/* Recent Activities Table */}
-              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Recent Activities Table (Full Light & Dark Contrast Parity) */}
+              <div className="bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-[#1B3B31] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold text-[#0B192C]">
+                    <h2 className="text-base font-semibold text-[#0B192C] dark:text-[#F0F5F2]">
                       Recent Portal Activities
                     </h2>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-[#9AB0A6]">
                       Live security and content audit trail across the Class Union ({filteredLogs.length} matching records)
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveTab('activityLogs')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0B192C] bg-[#FAF9F5] border border-[#C5A059]/40 rounded-lg hover:bg-[#C5A059]/15 transition-colors cursor-pointer self-start sm:self-auto"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0B192C] dark:text-[#F0F5F2] bg-[#FAF9F5] dark:bg-[#071713] border border-[#C5A059]/40 dark:border-[#1B3B31] rounded-lg hover:bg-[#C5A059]/15 dark:hover:bg-white/5 transition-colors cursor-pointer self-start sm:self-auto whitespace-nowrap"
                   >
                     <Activity className="w-3.5 h-3.5 text-[#C5A059]" />
-                    View Full Audit Log
+                    <span>View Full Audit Log</span>
                   </button>
                 </div>
 
                 {/* Quick Dashboard Search & Date-Range Filter Strip */}
-                <div className="px-6 py-3 bg-[#FAF9F5]/70 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                <div className="px-6 py-3 bg-[#FAF9F5]/70 dark:bg-[#071713]/70 border-b border-slate-200 dark:border-[#1B3B31] grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                   <div className="sm:col-span-5 relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="w-3.5 h-3.5 text-slate-400 dark:text-[#9AB0A6] absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       aria-label="Filter recent dashboard logs"
                       value={logSearch}
                       onChange={(e) => setLogSearch(e.target.value)}
                       placeholder="Quick search logs by actor, action, or details..."
-                      className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-[#0B192C]"
+                      className="w-full pl-9 pr-3 py-1.5 text-xs bg-white dark:bg-[#0D231D] text-[#17221F] dark:text-[#F0F5F2] border border-slate-300 dark:border-[#1B3B31] rounded-lg focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37]"
                     />
                   </div>
                   <div className="sm:col-span-3 flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-slate-500 shrink-0">From:</span>
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-[#9AB0A6] shrink-0">From:</span>
                     <input
                       type="date"
                       aria-label="Dashboard log start date"
                       value={logStartDate}
                       onChange={(e) => setLogStartDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono-tabular bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-[#0B192C]"
+                      className="w-full px-2.5 py-1.5 text-xs tabular-nums bg-white dark:bg-[#0D231D] text-[#17221F] dark:text-[#F0F5F2] border border-slate-300 dark:border-[#1B3B31] rounded-lg focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37]"
                     />
                   </div>
                   <div className="sm:col-span-3 flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-slate-500 shrink-0">To:</span>
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-[#9AB0A6] shrink-0">To:</span>
                     <input
                       type="date"
                       aria-label="Dashboard log end date"
                       value={logEndDate}
                       onChange={(e) => setLogEndDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono-tabular bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-[#0B192C]"
+                      className="w-full px-2.5 py-1.5 text-xs tabular-nums bg-white dark:bg-[#0D231D] text-[#17221F] dark:text-[#F0F5F2] border border-slate-300 dark:border-[#1B3B31] rounded-lg focus:outline-none focus:border-[#064E3B] dark:focus:border-[#D4AF37]"
                     />
                   </div>
                   <div className="sm:col-span-1 flex justify-end">
@@ -1382,7 +1407,7 @@ export function AdminPanel({
                       <button
                         type="button"
                         onClick={handleResetLogFilters}
-                        className="text-[11px] font-semibold text-slate-600 hover:text-[#0B192C] underline cursor-pointer"
+                        className="text-[11px] font-semibold text-slate-600 dark:text-[#D4AF37] hover:underline cursor-pointer"
                       >
                         Reset
                       </button>
@@ -1393,7 +1418,7 @@ export function AdminPanel({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <tr className="border-b border-slate-200 dark:border-[#1B3B31] bg-slate-50/70 dark:bg-[#071713] text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-[#9AB0A6]">
                         <th className="py-3 px-4">Actor</th>
                         <th className="py-3 px-4">Activity Type</th>
                         <th className="py-3 px-4">Description</th>
@@ -1401,17 +1426,17 @@ export function AdminPanel({
                         <th className="py-3 px-4 text-right">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-xs">
+                    <tbody className="divide-y divide-slate-100 dark:divide-[#1B3B31] text-xs">
                       {filteredLogs.slice(0, 6).map((log) => (
-                        <tr key={log.id} className="hover:bg-slate-50/80">
-                          <td className="py-3 px-4 font-semibold text-[#0B192C]">
+                        <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5">
+                          <td className="py-3 px-4 font-semibold text-[#0B192C] dark:text-[#F0F5F2]">
                             {log.actorName}
                           </td>
-                          <td className="py-3 px-4 font-mono-tabular text-slate-600">
+                          <td className="py-3 px-4 font-mono tabular-nums text-slate-600 dark:text-[#D4AF37]">
                             {log.actionType}
                           </td>
-                          <td className="py-3 px-4 text-slate-700">{log.details}</td>
-                          <td className="py-3 px-4 text-right font-mono-tabular text-slate-500">
+                          <td className="py-3 px-4 text-slate-700 dark:text-[#E2ECE7]">{log.details}</td>
+                          <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-500 dark:text-[#9AB0A6] whitespace-nowrap">
                             {formatIndiaDateTime(log.createdAt)}
                           </td>
                           <td className="py-3 px-4 text-right">
@@ -1428,7 +1453,7 @@ export function AdminPanel({
                               }
                               title="Delete log entry"
                               aria-label={`Delete log ${log.id}`}
-                              className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1437,7 +1462,7 @@ export function AdminPanel({
                       ))}
                       {filteredLogs.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="py-8 px-4 text-center text-xs text-slate-500">
+                          <td colSpan={5} className="py-8 px-4 text-center text-xs text-slate-500 dark:text-[#9AB0A6]">
                             No activity logs match the selected search or date range.
                           </td>
                         </tr>
@@ -2341,143 +2366,6 @@ export function AdminPanel({
             </div>
           )}
 
-          {/* 10B. APPOINTMENTS DESK */}
-          {activeTab === 'appointments' && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-serif-display font-bold text-[#0B192C] dark:text-[#F0F5F2]">
-                  Secretariat Appointments Desk
-                </h1>
-                <p className="text-xs text-slate-500 dark:text-[#9AB0A6]">
-                  Review, confirm, complete, or manage scheduled appointments submitted through the portal and Supabase backend
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {!state.appointments || state.appointments.length === 0 ? (
-                  <div className="p-8 text-center bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl text-sm text-slate-500 dark:text-[#9AB0A6]">
-                    No appointment bookings recorded yet.
-                  </div>
-                ) : (
-                  state.appointments.map((appt) => (
-                    <div
-                      key={appt.id}
-                      className="p-6 bg-white dark:bg-[#0D231D] border border-slate-200 dark:border-[#1B3B31] rounded-xl space-y-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-[#9AB0A6]">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-[#0B192C] dark:text-white text-sm">
-                            {appt.fullName}
-                          </span>
-                          <span>·</span>
-                          <span>{appt.email}</span>
-                          <span>·</span>
-                          <span>{appt.phone}</span>
-                        </div>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                            appt.status === 'confirmed'
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
-                              : appt.status === 'completed'
-                              ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'
-                              : appt.status === 'cancelled'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
-                          }`}
-                        >
-                          {appt.status}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-[#064E3B] dark:text-[#D4AF37]">
-                        <span className="inline-flex items-center gap-1.5">
-                          <CalendarDays className="w-3.5 h-3.5" />
-                          {appt.preferredDate} at {appt.preferredTime}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5" />
-                          {appt.department}
-                        </span>
-                      </div>
-
-                      <div>
-                        <h3 className="text-sm font-bold text-[#0B192C] dark:text-[#F0F5F2]">
-                          {appt.purpose}
-                        </h3>
-                        {appt.notes && (
-                          <p className="text-xs text-slate-600 dark:text-[#9AB0A6] mt-1">
-                            {appt.notes}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-[#1B3B31]">
-                        {appt.status !== 'confirmed' && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleAdminMutate(
-                                { action: 'UPDATE_APPOINTMENT_STATUS', appointmentId: appt.id, status: 'confirmed' },
-                                'Appointment confirmed.'
-                              )
-                            }
-                            className="px-3 py-1.5 rounded-lg bg-[#064E3B] text-white text-xs font-semibold cursor-pointer hover:bg-[#0B3D32]"
-                          >
-                            Confirm
-                          </button>
-                        )}
-                        {appt.status !== 'completed' && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleAdminMutate(
-                                { action: 'UPDATE_APPOINTMENT_STATUS', appointmentId: appt.id, status: 'completed' },
-                                'Appointment marked completed.'
-                              )
-                            }
-                            className="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-xs font-semibold cursor-pointer hover:bg-sky-800"
-                          >
-                            Mark Completed
-                          </button>
-                        )}
-                        {appt.status !== 'cancelled' && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleAdminMutate(
-                                { action: 'UPDATE_APPOINTMENT_STATUS', appointmentId: appt.id, status: 'cancelled' },
-                                'Appointment cancelled.'
-                              )
-                            }
-                            className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-[#1B3B31] text-xs font-semibold cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPendingDeleteAction({
-                              title: 'Delete Appointment Booking',
-                              itemLabel: `${appt.fullName} — ${appt.purpose}`,
-                              description: 'This permanently deletes the appointment record.',
-                              payload: { action: 'DELETE_APPOINTMENT', appointmentId: appt.id },
-                              successMessage: 'Appointment deleted.',
-                            })
-                          }
-                          className="ml-auto p-1.5 text-slate-400 hover:text-red-600 rounded-md cursor-pointer"
-                          aria-label={`Delete appointment for ${appt.fullName}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
           {/* 11. NOTIFICATIONS MANAGEMENT */}
           {activeTab === 'notifications' && (
             <div className="space-y-6 max-w-3xl">
@@ -3093,8 +2981,7 @@ export function AdminPanel({
               onViewActivityHistory={(targetUser) => setSelectedAccountForActivity(targetUser)}
             />
           )}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </main>
       </div>
 

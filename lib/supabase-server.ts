@@ -214,7 +214,7 @@ export async function ensureServerHydratedFromSupabase(
   const admin = getSupabaseAdminClient();
   if (!admin) return false;
 
-  const ttlMs = options?.ttlMs ?? 3000;
+  const ttlMs = options?.ttlMs ?? 60_000;
   const lastSync = global.__alnibrasLastSupabaseSyncAt || 0;
   if (!options?.force && lastSync > 0 && Date.now() - lastSync < ttlMs) {
     return true;

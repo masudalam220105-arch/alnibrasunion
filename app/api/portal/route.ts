@@ -95,15 +95,15 @@ function checkRateLimit(ip: string): boolean {
 
 export async function GET(req: NextRequest) {
   const store = loadServerStore();
-  if (isSupabaseAdminConfigured()) {
-    await ensureServerHydratedFromSupabase(store);
-  }
   const versionOnly = req.nextUrl.searchParams.get('versionOnly') === '1';
   if (versionOnly) {
     return NextResponse.json({
       ok: true,
       version: store.mutationVersion || 1,
     });
+  }
+  if (isSupabaseAdminConfigured()) {
+    await ensureServerHydratedFromSupabase(store);
   }
   const fallbackActorUid = req.nextUrl.searchParams.get('actorUid') || '';
   const resolved = resolveAuthenticatedActor(req, store, {

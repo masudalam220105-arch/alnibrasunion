@@ -143,7 +143,10 @@ export function ChatWindow({
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const onRealtimeSyncRef = useRef(onRealtimeSync);
-  onRealtimeSyncRef.current = onRealtimeSync;
+
+  useEffect(() => {
+    onRealtimeSyncRef.current = onRealtimeSync;
+  }, [onRealtimeSync]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;

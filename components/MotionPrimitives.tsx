@@ -1,17 +1,13 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useRef, useState, useSyncExternalStore } from 'react';
 import {
   AnimatePresence,
   MotionConfig,
   motion,
-  useMotionTemplate,
-  useMotionValue,
   useReducedMotion,
   useScroll,
   useSpring,
-  useTransform,
-  animate,
 } from 'motion/react';
 import { Check, Loader2 } from 'lucide-react';
 
@@ -74,34 +70,16 @@ export function SectionReveal({
   children,
   className = '',
   id,
-  delay = 0,
 }: SectionRevealProps) {
-  const shouldReduceMotion = useReducedMotion();
-
-  if (shouldReduceMotion) {
-    return (
-      <section id={id} className={className}>
-        {children}
-      </section>
-    );
-  }
-
   return (
-    <motion.section
-      id={id}
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.05 }}
-      transition={{ duration: 0.4, delay, ease: ALNIBRAS_EASE }}
-      className={className}
-    >
+    <section id={id} className={className}>
       {children}
-    </motion.section>
+    </section>
   );
 }
 
 /**
- * Container coordinating staggered entrance animations for card/list grids.
+ * Container coordinating crisp grid layout (zero scroll-blocking opacity traps).
  */
 export function StaggerGrid({
   children,
@@ -110,34 +88,11 @@ export function StaggerGrid({
   children: React.ReactNode;
   className?: string;
 }) {
-  const shouldReduceMotion = useReducedMotion();
-
-  if (shouldReduceMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.05 }}
-      variants={{
-        hidden: {},
-        visible: {
-          transition: {
-            staggerChildren: 0.045,
-          },
-        },
-      }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={className}>{children}</div>;
 }
 
 /**
- * Individual staggered child item inside a StaggerGrid.
+ * Individual grid item rendered with zero latency.
  */
 export function StaggerItem({
   children,
@@ -148,31 +103,10 @@ export function StaggerItem({
   className?: string;
   onClick?: () => void;
 }) {
-  const shouldReduceMotion = useReducedMotion();
-
-  if (shouldReduceMotion) {
-    return (
-      <div onClick={onClick} className={className}>
-        {children}
-      </div>
-    );
-  }
-
   return (
-    <motion.div
-      onClick={onClick}
-      variants={{
-        hidden: { opacity: 0, y: 14 },
-        visible: {
-          opacity: 1,
-          y: 0,
-          transition: { duration: 0.32, ease: ALNIBRAS_EASE },
-        },
-      }}
-      className={className}
-    >
+    <div onClick={onClick} className={className}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -184,8 +118,6 @@ export function InteractiveCard({
   children,
   className = '',
   onClick,
-  tilt = false,
-  spotlight = false,
   shine = false,
 }: {
   children: React.ReactNode;
@@ -195,78 +127,15 @@ export function InteractiveCard({
   spotlight?: boolean;
   shine?: boolean;
 }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
-  const finePointer = useFinePointer();
-
-  const rotateX = useSpring(0, { stiffness: 260, damping: 24 });
-  const rotateY = useSpring(0, { stiffness: 260, damping: 24 });
-  const mouseX = useMotionValue(-180);
-  const mouseY = useMotionValue(-180);
-
-  const spotlightBackground = useMotionTemplate`radial-gradient(260px circle at ${mouseX}px ${mouseY}px, rgba(212, 175, 55, 0.14), transparent 72%)`;
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!finePointer || shouldReduceMotion || (!tilt && !spotlight)) return;
-    const rect = cardRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    mouseX.set(x);
-    mouseY.set(y);
-    if (tilt) {
-      const px = (x / rect.width - 0.5) * 2;
-      const py = (y / rect.height - 0.5) * 2;
-      rotateX.set(-py * 3.5);
-      rotateY.set(px * 3.5);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    rotateX.set(0);
-    rotateY.set(0);
-    mouseX.set(-180);
-    mouseY.set(-180);
-  };
-
-  if (shouldReduceMotion) {
-    return (
-      <div onClick={onClick} className={className}>
-        {children}
-      </div>
-    );
-  }
-
   return (
-    <motion.div
-      ref={cardRef}
+    <div
       onClick={onClick}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      whileHover={finePointer ? { y: -3 } : undefined}
-      whileTap={onClick ? { scale: 0.985 } : undefined}
-      style={
-        tilt && finePointer
-          ? {
-              rotateX,
-              rotateY,
-              transformPerspective: 900,
-              transformStyle: 'preserve-3d',
-            }
-          : undefined
-      }
-      transition={{ duration: 0.2, ease: ALNIBRAS_EASE }}
-      className={`relative overflow-hidden ${shine ? 'hover-shine' : ''} ${className}`}
+      className={`relative overflow-hidden transition-transform duration-150 ${
+        onClick ? 'active:scale-[0.99]' : ''
+      } ${shine ? 'hover-shine' : ''} ${className}`}
     >
-      {spotlight && finePointer && (
-        <motion.div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          style={{ background: spotlightBackground }}
-        />
-      )}
       <div className="relative z-10 h-full">{children}</div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -405,8 +274,6 @@ export function RippleButton({
  */
 export function TextReveal({
   children,
-  variant = 'slide-up',
-  delay = 0,
   className = '',
 }: {
   children: React.ReactNode;
@@ -414,42 +281,11 @@ export function TextReveal({
   delay?: number;
   className?: string;
 }) {
-  const shouldReduceMotion = useReducedMotion();
-  if (shouldReduceMotion) {
-    return <span className={className}>{children}</span>;
-  }
-
-  const initial =
-    variant === 'slide-up'
-      ? { opacity: 0, y: 12 }
-      : variant === 'slide-down'
-      ? { opacity: 0, y: -12 }
-      : variant === 'blur'
-      ? { opacity: 0, filter: 'blur(6px)', y: 6 }
-      : { opacity: 0 };
-
-  const target =
-    variant === 'blur'
-      ? { opacity: 1, filter: 'blur(0px)', y: 0 }
-      : { opacity: 1, y: 0 };
-
-  return (
-    <motion.span
-      initial={initial}
-      whileInView={target}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.38, delay, ease: ALNIBRAS_EASE }}
-      className={`inline-block ${className}`}
-    >
-      {children}
-    </motion.span>
-  );
+  return <span className={`inline-block ${className}`}>{children}</span>;
 }
 
-const SCRAMBLE_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-
 /**
- * Subtle display kicker/title scramble reveal on initial viewport entry.
+ * Crisp immediate kicker text (zero interval scramble churn on initial paint).
  */
 export function TextScramble({
   text,
@@ -458,37 +294,7 @@ export function TextScramble({
   text: string;
   className?: string;
 }) {
-  const shouldReduceMotion = useReducedMotion();
-  const [output, setOutput] = useState(text);
-  const hasPlayedRef = useRef(false);
-
-  useEffect(() => {
-    if (shouldReduceMotion || hasPlayedRef.current) {
-      return;
-    }
-    hasPlayedRef.current = true;
-    let frame = 0;
-    const totalFrames = Math.min(14, Math.max(8, text.length));
-    const timer = setInterval(() => {
-      frame += 1;
-      const revealedCount = Math.floor((frame / totalFrames) * text.length);
-      const next = text
-        .split('')
-        .map((ch, idx) => {
-          if (ch === ' ' || ch === '·' || idx < revealedCount) return ch;
-          return SCRAMBLE_GLYPHS[(idx + frame) % SCRAMBLE_GLYPHS.length];
-        })
-        .join('');
-      setOutput(next);
-      if (frame >= totalFrames) {
-        clearInterval(timer);
-        setOutput(text);
-      }
-    }, 28);
-    return () => clearInterval(timer);
-  }, [text, shouldReduceMotion]);
-
-  return <span className={className}>{shouldReduceMotion ? text : output}</span>;
+  return <span className={className}>{text}</span>;
 }
 
 /**
@@ -516,36 +322,15 @@ export function AnimatedCounter({
   formatter?: (val: number) => string;
   className?: string;
 }) {
-  const shouldReduceMotion = useReducedMotion();
-  const [display, setDisplay] = useState<number>(value);
-  const prevRef = useRef<number>(value);
-
-  useEffect(() => {
-    if (shouldReduceMotion) {
-      prevRef.current = value;
-      return;
-    }
-    const startVal = prevRef.current;
-    const controls = animate(startVal, value, {
-      duration: 0.65,
-      ease: ALNIBRAS_EASE,
-      onUpdate: (latest) => setDisplay(Math.round(latest)),
-    });
-    prevRef.current = value;
-    return () => controls.stop();
-  }, [value, shouldReduceMotion]);
-
-  const shownValue = shouldReduceMotion ? value : display;
-
   return (
     <span className={`tabular-nums ${className}`}>
-      {formatter ? formatter(shownValue) : shownValue}
+      {formatter ? formatter(value) : value}
     </span>
   );
 }
 
 /**
- * Image component with smooth shimmer skeleton placeholder until decoded.
+ * Fast-decoding image wrapper with lightweight background surface.
  */
 export function ShimmerImage({
   src,
@@ -558,76 +343,44 @@ export function ShimmerImage({
   className?: string;
   containerClassName?: string;
 }) {
-  const [loaded, setLoaded] = useState(false);
-
   return (
-    <div className={`relative w-full h-full overflow-hidden ${containerClassName}`}>
-      {!loaded && (
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 animate-shimmer bg-[#E5EAE6]/70 dark:bg-[#102922]"
-        />
-      )}
+    <div className={`relative w-full h-full overflow-hidden bg-[#E5EAE6]/50 dark:bg-[#102922] ${containerClassName}`}>
       <img
         src={src}
         alt={alt}
+        loading="lazy"
+        decoding="async"
         referrerPolicy="no-referrer"
-        onLoad={() => setLoaded(true)}
-        onError={() => setLoaded(true)}
-        className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={className}
       />
     </div>
   );
 }
 
 /**
- * Subtle ambient aurora gradient & floating gold/emerald orbs for Hero/Banner backdrops.
+ * Lightweight subtle radial glow backdrop (zero continuous animation or blur-3xl paint cost).
  */
 export function AmbientBackground({ className = '' }: { className?: string }) {
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
-    >
-      <div className="absolute -top-24 -right-16 w-80 h-80 rounded-full bg-[#D4AF37]/14 blur-3xl animate-aurora" />
-      <div
-        className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl animate-subtle-float"
-      />
-    </div>
+      className={`pointer-events-none absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.12),transparent_48%)] ${className}`}
+    />
   );
 }
 
 /**
- * Scroll-linked vertical parallax container for hero/highlight frames.
+ * Lightweight frame container without heavy per-card scroll listeners.
  */
 export function ParallaxLayer({
   children,
-  offset = 24,
   className = '',
 }: {
   children: React.ReactNode;
   offset?: number;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'end start'],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], [-offset, offset]);
-
-  if (shouldReduceMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
-  return (
-    <div ref={ref} className={className}>
-      <motion.div style={{ y }} className="w-full h-full">
-        {children}
-      </motion.div>
-    </div>
-  );
+  return <div className={className}>{children}</div>;
 }
 
 /**

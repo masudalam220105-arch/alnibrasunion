@@ -40,18 +40,15 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ALNIBRAS_EASE,
-  AmbientBackground,
   AnimatedCounter,
   InteractiveCard,
   RippleButton,
   StaggerGrid,
   StaggerItem,
-  TextReveal,
 } from './MotionPrimitives';
 import { LiveDateTimeClock } from './LiveDateTimeClock';
 import { SafeImage } from './SafeImage';
 import { OfficialLogo } from './OfficialBrandingView';
-import ThemeToggle from './ThemeToggle';
 import PhotoLightboxModal from './PhotoLightboxModal';
 import PortalHeaderSearch from './PortalHeaderSearch';
 import type { PortalTopSearchResult } from '@/lib/portal-search';
@@ -151,6 +148,16 @@ export function StudentPanel({
   const myPublishedResultsCount = (state.studentResults || []).filter(
     (r) => r.studentUid === currentUser.uid && r.status === 'published'
   ).length;
+  const myTotalPoints = (state.studentPoints || []).find(
+    (p) => p.studentUid === currentUser.uid
+  )?.totalPoints ?? 0;
+  const upcomingCalendarDates = useMemo(
+    () =>
+      [...(state.calendarEvents || [])]
+        .sort((a, b) => String(a.startDate || '').localeCompare(String(b.startDate || '')))
+        .slice(0, 4),
+    [state.calendarEvents]
+  );
 
   // Union Financial Calculations (Part 8: Current Balance = Total Income - Total Expenses)
   const totalUnionIncome = useMemo(
@@ -528,7 +535,6 @@ export function StudentPanel({
                 }
               }}
             />
-            <ThemeToggle compact />
 
             {/* Notifications Dropdown */}
             <div className="relative">
@@ -637,183 +643,192 @@ export function StudentPanel({
           </div>
         </header>
 
-        {/* Student Viewport with Smooth Tab Transitions */}
+        {/* Student Viewport */}
         <main className="p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.16, ease: ALNIBRAS_EASE }}
-              className="space-y-8"
-            >
-          {/* 1. STUDENT DASHBOARD (Part 14) */}
+          <div className="space-y-8">
+          {/* 1. STUDENT DASHBOARD */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-8">
-              {/* Personalized Welcome Banner with Ambient Motion & Live Clock */}
-              <div className="relative overflow-hidden p-6 lg:p-8 bg-gradient-to-r from-[#064E3B] to-[#0B3D32] text-white rounded-xl border border-[#D4AF37]/30 flex flex-col gap-5 shadow-md">
-                <AmbientBackground />
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#D4AF37] shrink-0 shadow-md">
-                      <SafeImage
-                        src={currentUser.avatarUrl}
-                        alt={currentUser.fullName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-wider text-[#D4AF37] font-bold">
-                        Al-Nibras Student Portal · {currentUser.classInfo || '11th Batch of DHBC'}
-                      </p>
-                      <h1 className="text-2xl lg:text-3xl font-extrabold text-white">
-                        <TextReveal variant="slide-up">Welcome, {currentUser.fullName}</TextReveal>
-                      </h1>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-white/80 font-mono">
-                        <span>ID: {currentUser.studentId}</span>
-                        <span>·</span>
-                        <span>Roll #{currentUser.rollNumber}</span>
-                        <span>·</span>
-                        <span>@{currentUser.username}</span>
-                      </div>
-                    </div>
+            <div className="space-y-6">
+              {/* Scholar Command Hero Banner */}
+              <div className="p-6 lg:p-7 bg-gradient-to-br from-[#064E3B] via-[#083B2E] to-[#0B192C] text-white rounded-xl border border-[#D4AF37]/30 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-sm">
+                <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#D4AF37] shrink-0">
+                    <SafeImage
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.fullName}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-widest text-[#D4AF37] font-bold">
+                      Al-Nibras Scholar Workspace · {currentUser.classInfo || '11th Batch of DHBC'}
+                    </p>
+                    <h1 className="text-2xl lg:text-3xl font-serif-display font-bold text-white truncate">
+                      Welcome, {currentUser.fullName}
+                    </h1>
+                    <p className="text-xs text-white/80 font-mono tabular-nums truncate">
+                      ID: {currentUser.studentId} · Roll #{currentUser.rollNumber} · @{currentUser.username}
+                    </p>
+                  </div>
+                </div>
 
-                  <div className="flex flex-col sm:items-end gap-3 shrink-0">
-                    <LiveDateTimeClock variant="banner" />
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <RippleButton
-                        type="button"
-                        onClick={() => setActiveTab('financialSummary')}
-                        className="px-4 py-2.5 bg-[#D4AF37] hover:bg-[#c29d2f] text-[#071713] text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
-                      >
-                        <Wallet className="w-3.5 h-3.5" />
-                        <span>Union Finances</span>
-                      </RippleButton>
-                      <RippleButton
-                        type="button"
-                        onClick={() => setActiveTab('fines')}
-                        className="px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                      >
-                        <Receipt className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        <span>My Fines ({formatINR(myRemainingFine)})</span>
-                      </RippleButton>
-                      <RippleButton
-                        type="button"
-                        onClick={() => setActiveTab('profile')}
-                        className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                      >
-                        My Profile
-                      </RippleButton>
-                    </div>
+                <div className="flex flex-col lg:items-end gap-3 shrink-0">
+                  <LiveDateTimeClock variant="banner" />
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <RippleButton
+                      type="button"
+                      onClick={() => setActiveTab('messages')}
+                      className="px-4 py-2 bg-[#D4AF37] hover:bg-[#c29d2f] text-[#071713] text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <MessageSquareCode className="w-3.5 h-3.5" />
+                      <span>Messages ({myUnreadChats})</span>
+                    </RippleButton>
+                    <RippleButton
+                      type="button"
+                      onClick={() => setActiveTab('myCertificates')}
+                      className="px-4 py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <FileBadge className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>Certificates</span>
+                    </RippleButton>
+                    <RippleButton
+                      type="button"
+                      onClick={() => setActiveTab('profile')}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      My Profile
+                    </RippleButton>
                   </div>
                 </div>
               </div>
 
-              {/* Summary Metric Cards: Union Financial Balance, Personal Fine Summary, Published Results, Notifications */}
-              <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('financialSummary')}
-                    className="group p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl cursor-pointer hover:border-[#064E3B] dark:hover:border-[#D4AF37]/60 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
-                        Union Current Balance
-                      </span>
-                      <Wallet className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37] group-hover-bounce" />
-                    </div>
-                    <div className="text-xl font-extrabold text-[#17221F] dark:text-white tabular-nums">
-                      <AnimatedCounter value={currentUnionBalance} formatter={formatINR} />
-                    </div>
-                    <div className="text-[11px] text-[#718078] dark:text-[#9AB0A6] mt-1">
-                      Income: {formatINR(totalUnionIncome)} · Exp: {formatINR(totalUnionExpenses)}
-                    </div>
-                  </InteractiveCard>
-                </StaggerItem>
+              {/* Balanced 4-Column Financial & Academic KPI Strip */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('financialSummary')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
+                      Union Treasury
+                    </span>
+                    <Wallet className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                  </div>
+                  <div className="text-2xl font-serif-display font-bold text-[#17221F] dark:text-white tabular-nums mt-2">
+                    {formatINR(currentUnionBalance)}
+                  </div>
+                  <div className="text-xs text-[#718078] dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    In {formatINR(totalUnionIncome)} · Out {formatINR(totalUnionExpenses)}
+                  </div>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('fines')}
-                    className="group p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl cursor-pointer hover:border-[#064E3B] dark:hover:border-[#D4AF37]/60 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
-                        Personal Fine Summary
-                      </span>
-                      <Receipt className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37] group-hover-bounce" />
-                    </div>
-                    <div className="text-xl font-extrabold text-[#17221F] dark:text-white tabular-nums">
-                      <AnimatedCounter value={myRemainingFine} formatter={formatINR} />
-                    </div>
-                    <div className="text-[11px] text-[#718078] dark:text-[#9AB0A6] mt-1">
-                      {myUnpaidFines.length === 0
-                        ? 'You have no pending fines.'
-                        : `${myUnpaidFines.length} pending fine(s)`}
-                    </div>
-                  </InteractiveCard>
-                </StaggerItem>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('fines')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] hover:border-amber-500/60 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
+                      Personal Fines
+                    </span>
+                    <Receipt className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                  </div>
+                  <div className="text-2xl font-serif-display font-bold text-[#17221F] dark:text-white tabular-nums mt-2">
+                    {formatINR(myRemainingFine)}
+                  </div>
+                  <div className="text-xs text-[#718078] dark:text-[#9AB0A6] mt-1">
+                    {myUnpaidFines.length === 0
+                      ? 'All clear — no pending fines'
+                      : `${myUnpaidFines.length} pending fine record(s)`}
+                  </div>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('myResults')}
-                    className="group p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl cursor-pointer hover:border-[#064E3B] dark:hover:border-[#D4AF37]/60 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
-                        Results &amp; Certificates
-                      </span>
-                      <Award className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37] group-hover-bounce" />
-                    </div>
-                    <div className="text-xl font-extrabold text-[#17221F] dark:text-white tabular-nums">
-                      <AnimatedCounter value={myPublishedResultsCount} /> Published
-                    </div>
-                    <div className="text-[11px] text-[#718078] dark:text-[#9AB0A6] mt-1">
-                      View merits &amp; download certificates
-                    </div>
-                  </InteractiveCard>
-                </StaggerItem>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('myResults')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
+                      Merit &amp; Results
+                    </span>
+                    <Award className="w-4 h-4 text-[#B48A3E] dark:text-[#D4AF37]" />
+                  </div>
+                  <div className="text-2xl font-serif-display font-bold text-[#17221F] dark:text-white tabular-nums mt-2">
+                    {myTotalPoints} pts
+                  </div>
+                  <div className="text-xs text-[#718078] dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {myPublishedResultsCount} Published competition results
+                  </div>
+                </button>
 
-                <StaggerItem>
-                  <InteractiveCard
-                    tilt
-                    spotlight
-                    shine
-                    onClick={() => setActiveTab('notifications')}
-                    className="group p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl cursor-pointer hover:border-[#064E3B] dark:hover:border-[#D4AF37]/60 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
-                        Notifications
-                      </span>
-                      <Bell className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37] group-hover-bounce" />
-                    </div>
-                    <div className="text-xl font-extrabold text-[#17221F] dark:text-white tabular-nums">
-                      <AnimatedCounter value={unreadNotifCount} /> Unread
-                    </div>
-                    <div className="text-[11px] text-[#718078] dark:text-[#9AB0A6] mt-1">
-                      {state.notifications.length} total alerts
-                    </div>
-                  </InteractiveCard>
-                </StaggerItem>
-              </StaggerGrid>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(myUnreadChats > 0 ? 'messages' : 'notifications')}
+                  className="p-5 bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] hover:border-[#064E3B] dark:hover:border-[#D4AF37]/70 rounded-xl text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#718078] dark:text-[#9AB0A6]">
+                      Inbox &amp; Alerts
+                    </span>
+                    <Bell className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                  </div>
+                  <div className="text-2xl font-serif-display font-bold text-[#17221F] dark:text-white tabular-nums mt-2">
+                    {myUnreadChats + unreadNotifCount} Unread
+                  </div>
+                  <div className="text-xs text-[#718078] dark:text-[#9AB0A6] mt-1 tabular-nums">
+                    {myUnreadChats} Chat · {unreadNotifCount} Notifications
+                  </div>
+                </button>
+              </div>
 
-              {/* Latest Notices & Latest Announcements */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl p-6 space-y-4">
+              {/* 3-Panel Organized Stream: Upcoming Calendar, Latest Notices & Announcements */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl p-5 space-y-4">
                   <div className="flex items-center justify-between border-b border-[#E5EAE6] dark:border-[#1B3B31] pb-3">
-                    <h2 className="text-base font-bold text-[#17221F] dark:text-white">
-                      Latest Notices
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-[#17221F] dark:text-white flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                      <span>Upcoming Calendar</span>
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('calendar')}
+                      className="text-xs font-bold text-[#064E3B] dark:text-[#D4AF37] hover:underline cursor-pointer"
+                    >
+                      View Calendar
+                    </button>
+                  </div>
+                  {upcomingCalendarDates.length === 0 ? (
+                    <p className="text-xs text-[#718078] dark:text-[#9AB0A6] py-6 text-center">
+                      No upcoming calendar dates scheduled.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-[#E5EAE6] dark:divide-[#1B3B31]">
+                      {upcomingCalendarDates.map((evt) => (
+                        <button
+                          key={evt.id}
+                          type="button"
+                          onClick={() => setActiveTab('calendar')}
+                          className="w-full py-3 first:pt-1 last:pb-1 text-left hover:opacity-85 transition-opacity cursor-pointer block"
+                        >
+                          <div className="text-[11px] font-semibold text-[#064E3B] dark:text-[#D4AF37] tabular-nums">
+                            {evt.startDate} · {evt.category || 'Union'}
+                          </div>
+                          <div className="text-sm font-bold text-[#17221F] dark:text-white mt-0.5 truncate">
+                            {evt.title}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#E5EAE6] dark:border-[#1B3B31] pb-3">
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-[#17221F] dark:text-white flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                      <span>Latest Notices</span>
                     </h2>
                     <button
                       type="button"
@@ -828,30 +843,31 @@ export function StudentPanel({
                       No notices available at the moment.
                     </p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-[#E5EAE6] dark:divide-[#1B3B31]">
                       {publishedNotices.slice(0, 4).map((n) => (
-                        <div
+                        <button
                           key={n.id}
+                          type="button"
                           onClick={() => setActiveTab('notices')}
-                          className="hover-lift p-3.5 rounded-lg bg-[#F8FAF7] dark:bg-[#071713] border border-[#E5EAE6] dark:border-[#1B3B31] cursor-pointer"
+                          className="w-full py-3 first:pt-1 last:pb-1 text-left hover:opacity-85 transition-opacity cursor-pointer block"
                         >
-                          <div className="flex items-center justify-between text-[11px] font-semibold text-[#064E3B] dark:text-[#D4AF37]">
-                            <span>{n.referenceCode}</span>
-                            <span>{n.effectiveDate}</span>
+                          <div className="text-[11px] font-semibold text-[#064E3B] dark:text-[#D4AF37] tabular-nums">
+                            {n.referenceCode} · {n.effectiveDate}
                           </div>
-                          <div className="text-sm font-bold text-[#17221F] dark:text-white mt-0.5">
+                          <div className="text-sm font-bold text-[#17221F] dark:text-white mt-0.5 truncate">
                             {n.title}
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div className="bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl p-6 space-y-4">
+                <div className="bg-white dark:bg-[#0D231D] border border-[#E5EAE6] dark:border-[#1B3B31] rounded-xl p-5 space-y-4">
                   <div className="flex items-center justify-between border-b border-[#E5EAE6] dark:border-[#1B3B31] pb-3">
-                    <h2 className="text-base font-bold text-[#17221F] dark:text-white">
-                      Latest Announcements
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-[#17221F] dark:text-white flex items-center gap-2">
+                      <Megaphone className="w-4 h-4 text-[#064E3B] dark:text-[#D4AF37]" />
+                      <span>Announcements</span>
                     </h2>
                     <button
                       type="button"
@@ -866,21 +882,21 @@ export function StudentPanel({
                       No announcements published yet.
                     </p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-[#E5EAE6] dark:divide-[#1B3B31]">
                       {publishedAnnouncements.slice(0, 4).map((ann) => (
-                        <div
+                        <button
                           key={ann.id}
+                          type="button"
                           onClick={() => setActiveTab('announcements')}
-                          className="hover-lift p-3.5 rounded-lg bg-[#F8FAF7] dark:bg-[#071713] border border-[#E5EAE6] dark:border-[#1B3B31] cursor-pointer"
+                          className="w-full py-3 first:pt-1 last:pb-1 text-left hover:opacity-85 transition-opacity cursor-pointer block"
                         >
-                          <div className="flex items-center justify-between text-[11px] font-semibold text-[#064E3B] dark:text-[#D4AF37]">
-                            <span>{ann.category}</span>
-                            <span>{formatIndiaDate(ann.createdAt)}</span>
+                          <div className="text-[11px] font-semibold text-[#064E3B] dark:text-[#D4AF37] tabular-nums">
+                            {ann.category} · {formatIndiaDate(ann.createdAt)}
                           </div>
-                          <div className="text-sm font-bold text-[#17221F] dark:text-white mt-0.5">
+                          <div className="text-sm font-bold text-[#17221F] dark:text-white mt-0.5 truncate">
                             {ann.title}
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -1903,8 +1919,7 @@ export function StudentPanel({
               </form>
             </div>
           )}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </main>
       </div>
 

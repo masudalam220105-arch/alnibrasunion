@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Award, Calendar, Download, FileBadge, MapPin, Printer, Upload, X } from 'lucide-react';
 import type { BrandingConfig, CertificateRecord, CertificateSettings } from '@/lib/types';
 
@@ -634,19 +634,22 @@ export function CertificatePreviewModal({
   onClose,
 }: CertificatePreviewModalProps) {
   const [downloading, setDownloading] = useState(false);
-  const [uploadedLogoUrl, setUploadedLogoUrl] = useState<string>('');
-  const [selectedTitle, setSelectedTitle] = useState<CertificateTitleOption>(
-    'Certificate of Achievement'
-  );
+  const [logoOverride, setLogoOverride] = useState<{ certId: string; url: string } | null>(null);
+  const [titleOverride, setTitleOverride] = useState<{
+    certId: string;
+    title: CertificateTitleOption;
+  } | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (!certificate) return;
-    setSelectedTitle(resolveCertificateTitle(certificate, settings));
-    setUploadedLogoUrl('');
-  }, [certificate, settings]);
-
   if (!certificate) return null;
+
+  const selectedTitle: CertificateTitleOption =
+    titleOverride && titleOverride.certId === certificate.id
+      ? titleOverride.title
+      : resolveCertificateTitle(certificate, settings);
+
+  const uploadedLogoUrl =
+    logoOverride && logoOverride.certId === certificate.id ? logoOverride.url : '';
 
   const effectiveLogo =
     uploadedLogoUrl || logoUrl || branding?.logoUrl || DEFAULT_OFFICIAL_LOGO_URL;
@@ -664,7 +667,7 @@ export function CertificatePreviewModal({
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        setUploadedLogoUrl(reader.result);
+        setLogoOverride({ certId: certificate.id, url: reader.result });
       }
     };
     reader.readAsDataURL(file);
@@ -721,7 +724,7 @@ export function CertificatePreviewModal({
                   <button
                     key={option}
                     type="button"
-                    onClick={() => setSelectedTitle(option)}
+                    onClick={() => setTitleOverride({ certId: certificate.id, title: option })}
                     className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
                       active
                         ? 'bg-[#C59B27] text-[#0B1F3A]'

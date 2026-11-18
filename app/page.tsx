@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   formatSupabaseUiError,
   getCurrentSupabaseSession,
@@ -10,17 +11,13 @@ import {
   signInWithSupabaseGoogle,
   signOutSupabaseUser,
   SUPER_ADMIN_EMAIL,
-  testSupabaseConnection,
   type SupabaseUser,
 } from '@/lib/supabase';
 import {
   isSupabaseAdminUser,
   loadPortalStateFromSupabase,
   resolveMatchedPortalUser,
-  submitAppointmentToSupabase,
   submitPublicContactToSupabase,
-  type AppointmentSubmitInput,
-  type AppointmentSubmitResult,
 } from '@/lib/supabase-db';
 import {
   broadcastPortalUpdate,
@@ -30,13 +27,39 @@ import {
 import { applyPortalMutation } from '@/lib/portal-mutations';
 import { getInitialPortalState } from '@/lib/seed-data';
 import { PublicHomePage } from '@/components/PublicHomePage';
-import { LoginModal } from '@/components/LoginModal';
-import { AdminPanel } from '@/components/AdminPanel';
-import { StudentPanel } from '@/components/StudentPanel';
 import type { PortalDatabaseState, UserProfile } from '@/lib/types';
 import { CheckCircle2, AlertCircle, X, Cloud, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ALNIBRAS_EASE } from '@/components/MotionPrimitives';
+
+const LoginModal = dynamic(
+  () => import('@/components/LoginModal').then((m) => m.LoginModal),
+  { ssr: false, loading: () => null }
+);
+
+const AdminPanel = dynamic(
+  () => import('@/components/AdminPanel').then((m) => m.AdminPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAF7] dark:bg-[#071713] text-xs font-semibold text-[#064E3B] dark:text-[#D4AF37]">
+        Loading Administrator Workspace...
+      </div>
+    ),
+  }
+);
+
+const StudentPanel = dynamic(
+  () => import('@/components/StudentPanel').then((m) => m.StudentPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAF7] dark:bg-[#071713] text-xs font-semibold text-[#064E3B] dark:text-[#D4AF37]">
+        Loading Student Portal...
+      </div>
+    ),
+  }
+);
 
 interface ToastMessage {
   id: number;
@@ -203,7 +226,7 @@ export default function AlNibrasPortalApp() {
   );
 
   useEffect(() => {
-    void testSupabaseConnection();
+    void refreshPortalSilently(true);
 
     void getCurrentSupabaseSession().then((session) => {
       const user = session?.user ?? null;
@@ -211,8 +234,6 @@ export default function AlNibrasPortalApp() {
       setSupabaseUser(user);
       if (user) {
         void hydrateFromSupabase(user, true);
-      } else {
-        void refreshPortalSilently(true);
       }
     });
 
@@ -569,30 +590,6 @@ export default function AlNibrasPortalApp() {
     }
   };
 
-  const handleBookAppointment = async (
-    payload: AppointmentSubmitInput
-  ): Promise<AppointmentSubmitResult> => {
-    const result = await submitAppointmentToSupabase({
-      ...payload,
-      studentUid: currentUser?.uid,
-    });
-    if (result.ok && result.appointment) {
-      setPortalState((prev) => ({
-        ...prev,
-        appointments: [result.appointment!, ...(prev.appointments || [])],
-      }));
-      if (result.savedToSupabase) {
-        showToast('Appointment booked and saved to Supabase database.', 'success');
-      } else {
-        showToast(
-          'Appointment request saved locally. Run lib/supabase-schema.sql in Supabase SQL Editor to sync remote tables.',
-          'success'
-        );
-      }
-    }
-    return result;
-  };
-
   const handlePublicContact = async (payload: {
     senderName: string;
     senderEmail: string;
@@ -759,7 +756,6 @@ export default function AlNibrasPortalApp() {
               currentUser={currentUser}
               onOpenLogin={() => setLoginModalOpen(true)}
               onEnterPortal={() => setViewMode('portal')}
-              onBookAppointment={handleBookAppointment}
               onSubmitPublicContact={handlePublicContact}
             />
           </motion.div>

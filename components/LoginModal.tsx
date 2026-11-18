@@ -16,15 +16,22 @@ interface LoginModalProps {
   branding?: BrandingConfig;
 }
 
-export function LoginModal({
-  isOpen,
+export function LoginModal(props: LoginModalProps) {
+  return (
+    <AnimatePresence>
+      {props.isOpen && <LoginModalContent key="login-modal-open" {...props} />}
+    </AnimatePresence>
+  );
+}
+
+function LoginModalContent({
   onClose,
   onLoginSubmit,
   onGoogleLogin,
   onEmailPasswordLogin,
   branding,
 }: LoginModalProps) {
-  const [authTab, setAuthTab] = useState<'cloud' | 'legacy'>('cloud');
+  const [authTab, setAuthTab] = useState<'cloud' | 'legacy'>('legacy');
   const [email, setEmail] = useState('');
   const [cloudPassword, setCloudPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -34,16 +41,6 @@ export function LoginModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setEmail('');
-    setCloudPassword('');
-    setUsername('');
-    setPassword('');
-    setError(null);
-    setStatusMessage(null);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !loading) {
         e.preventDefault();
@@ -52,7 +49,7 @@ export function LoginModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, loading, onClose]);
+  }, [loading, onClose]);
 
   const handleCloudEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,8 +123,6 @@ export function LoginModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
         <motion.div
           key="login-modal-backdrop"
           initial={{ opacity: 0 }}
@@ -451,8 +446,6 @@ export function LoginModal({
             </div>
           </motion.div>
         </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 
